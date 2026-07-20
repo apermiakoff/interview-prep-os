@@ -37,6 +37,10 @@ test("large collections render a bounded server page and send filters", async ()
     page_size: 25,
     pages: 10,
     status_counts: { backlog: 250 },
+    tracks: [
+      { id: "outtalent", title: "Outtalent — Algorithms core program", kind: "formal", priority: 0 },
+      { id: "deep-supplemental", title: "Deep supplemental roadmap", kind: "supplemental", priority: 100 },
+    ],
   });
 
   render(<ProblemCollectionView data={data} navigate={() => {}} scope="queue" eyebrow="Queue" title="Scale" description="Test" allowBulk />);

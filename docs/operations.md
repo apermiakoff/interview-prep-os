@@ -8,7 +8,24 @@ The service is intentionally published only on the VM loopback interface:
 127.0.0.1:8765 → container:8000
 ```
 
-It has no public listener and no public signup/authentication surface. SSH is the access and authentication boundary.
+It has no public listener and no public signup/authentication surface. Tailscale identity is the preferred access boundary; SSH is the fallback.
+
+## Access through Tailscale
+
+Tailscale Serve proxies tailnet-authenticated HTTPS to the loopback service:
+
+```bash
+tailscale serve --bg --yes http://127.0.0.1:8765
+tailscale serve status
+```
+
+Open from a device signed into the same tailnet:
+
+```text
+https://ubuntu-16gb-nbg1-1-hermes.tail1fd6b9.ts.net/
+```
+
+The raw VM IP and port remain closed.
 
 ## Access through SSH
 

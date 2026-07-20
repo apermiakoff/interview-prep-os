@@ -6,13 +6,15 @@ A private single-user training application that turns daily interview preparatio
 
 ## Runtime boundary
 
-One Docker service serves both the built React application and `/api/*`. It binds to host loopback only (`127.0.0.1:8765`) and is reached through an SSH tunnel. There is no public signup or LeetCode session credential.
+One Docker service serves both the built React application and `/api/*`. It binds to host loopback only (`127.0.0.1:8765`). Tailscale Serve provides tailnet-authenticated HTTPS; SSH forwarding remains a fallback. There is no public listener, public signup, or LeetCode session credential.
 
 ## Modules
 
-- `app/db.py`: SQLite connection, migrations, transaction helper.
+- `app/db.py`: SQLite connection, atomic forward-only migrations, transaction helper.
 - `app/repository.py`: persistence boundary and read models.
 - `app/scheduler.py`: pure adaptive-memory calculations.
+- `app/learning.py`: deterministic skill evidence, trap detection, retention, and daily decisions.
+- `app/curriculum.py`: normalized curriculum and skill-graph import.
 - `app/services.py`: attempt/hint/notes workflows.
 - `app/api.py`: validated HTTP boundary.
 - `app/lessons.py`: versioned pattern content and semantic visualization traces.
@@ -33,6 +35,11 @@ SQLite uses WAL mode, foreign keys, busy timeout, and schema migrations in `sche
 - `profile_snapshots`
 - `notes`
 - `hint_events` (append-only)
+- `curricula` and `curriculum_items`
+- `skills`, `skill_edges`, and `problem_skills`
+- `error_types` and `attempt_errors`
+- `learner_skill_states`
+- `learning_decisions`
 
 Attempt events are immutable. Derived memory and review rows are updated in the same `BEGIN IMMEDIATE` transaction. The legacy importer uses deterministic source IDs and `INSERT OR IGNORE`. Queue state is separate from canonical problem identity, so backlog, blocked, scheduled, and archived lifecycle changes do not rewrite evidence.
 
@@ -43,6 +50,19 @@ Attempt events are immutable. Derived memory and review rows are updated in the 
 ## Adaptive scheduling
 
 The scheduler treats Accepted, independent retrieval, hint level, delay, duration, and outcome as separate evidence. Assisted Accepted remains Red/Yellow evidence. Low sample sizes are labeled rather than converted into fake mastery percentages.
+
+The learner model derives six independent dimensions: recognition, derivation,
+implementation, testing, explanation, and retention. Recommendations persist the
+policy version, candidate inputs, constraints, selected problem, and factual rationale.
+Thresholds and score weights are product policy rather than scientific constants.
+
+## Curriculum model
+
+Canonical problems are independent of curriculum placements. Outtalent is the formal
+priority track; the deep study plan is supplemental. Repeated rows and cross-track
+overlap share the same problem and evidence. Screenshot-derived rows retain source,
+confidence, raw title, status, and placement metadata; unreadable rows stay explicit
+placeholders rather than invented problems.
 
 ## Visualization
 

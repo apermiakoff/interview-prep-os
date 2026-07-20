@@ -244,10 +244,15 @@ def main() -> int:
                 continue
             connection.execute(
                 """
-                INSERT OR IGNORE INTO reviews(
-                  id, problem_id, due_on, status, stage, source_attempt_id, completed_at
-                )
+                INSERT INTO reviews(
+                  id, problem_id, due_on, status, stage, source_attempt_id, completed_at)
                 VALUES(?, ?, ?, ?, ?, NULL, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                  problem_id=excluded.problem_id,
+                  due_on=excluded.due_on,
+                  status=excluded.status,
+                  stage=excluded.stage,
+                  completed_at=excluded.completed_at
                 """,
                 (
                     review.get("id") or review.get("review_id"),

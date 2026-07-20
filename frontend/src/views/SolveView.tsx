@@ -38,6 +38,12 @@ export function SolveView({ data, onData, navigate }: { data: Bootstrap; onData:
   const requestedLevel = useMemo(() => levels[Math.max(0, Math.min(revealed - 1, 3))], [revealed]);
   if (!active) return <main className="view page-shell"><div className="section-heading"><span className="eyebrow">Solve room</span><h1>No active assignment.</h1><button className="button primary" onClick={() => navigate("today")}>Back to Today</button></div></main>;
 
+  // Policy (matches the backend exactly): any revealed hint means the attempt is
+  // recorded as assisted — a Green submission is normalized to Yellow with
+  // independence removed. The UI must not promise otherwise.
+  const hintsUsed = revealed > 0;
+  const effectiveIndependent = independent && !hintsUsed;
+
   const revealThrough = async (level: string) => {
     setBusy(true); setMessage("");
     try {
@@ -45,7 +51,6 @@ export function SolveView({ data, onData, navigate }: { data: Bootstrap; onData:
       const index = levels.indexOf(level) + 1;
       setHintText(current => ({ ...current, [level]: result.text }));
       setRevealed(Math.max(revealed, index));
-      if (level === "H4") setIndependent(false);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Hint unavailable"); }
     finally { setBusy(false); }
   };
@@ -53,18 +58,21 @@ export function SolveView({ data, onData, navigate }: { data: Bootstrap; onData:
   const submit = async (result: Result) => {
     setBusy(true); setMessage("");
     try {
+      const wasIndependentGreen = result === "green" && effectiveIndependent;
       const updated = await api.recordAttempt({
         assignment_id: active.id,
         event_id: crypto.randomUUID(),
         result,
         accepted,
-        independent: result === "green" && independent,
+        independent: wasIndependentGreen,
         duration_minutes: elapsed,
         failure_tag: result === "green" ? "none" : failure,
         explanation_score: explanation,
       });
       onData(updated);
-      navigate(result === "green" && independent ? "evidence" : "lab");
+      // Independent success closes the loop in the Brain; anything else lands on
+      // this problem's workspace, where the new evidence and next review live.
+      navigate(wasIndependentGreen ? "brain" : `problem/${active.problem_id}`);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Attempt could not be recorded"); }
     finally { setBusy(false); }
   };
@@ -100,7 +108,7 @@ export function SolveView({ data, onData, navigate }: { data: Bootstrap; onData:
               </article>;
             })}
           </div>
-          {revealed > 0 && <p className="hint-warning">You have used through {requestedLevel}. A Green result will be normalized to assisted evidence.</p>}
+          {hintsUsed && <p className="hint-warning">Hints used through {requestedLevel}. Policy: any revealed hint records this attempt as assisted — a Green submission becomes Yellow and independence is removed. Independence requires zero hints.</p>}
         </aside>
       </section>
 
@@ -108,11 +116,11 @@ export function SolveView({ data, onData, navigate }: { data: Bootstrap; onData:
         <div className="outcome-copy"><span className="eyebrow">Close the loop</span><h2>Record evidence, not a mood.</h2><p>Accepted and independent are separate facts. A copied Accepted can remain Red.</p></div>
         <div className="outcome-fields">
           <label><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} /> Accepted by LeetCode</label>
-          <label><input type="checkbox" checked={independent} onChange={event => setIndependent(event.target.checked)} /> Independent implementation</label>
+          <label className={hintsUsed ? "field-disabled" : ""} title={hintsUsed ? "Unavailable: hints were revealed, so this attempt records as assisted." : undefined}><input type="checkbox" checked={effectiveIndependent} disabled={hintsUsed} onChange={event => setIndependent(event.target.checked)} /> Independent implementation{hintsUsed ? " (off: hints used)" : ""}</label>
           <label>Primary blocker<select value={failure} onChange={event => setFailure(event.target.value)}><option value="unspecified">Not specified</option><option value="recognition">Recognition</option><option value="derivation">Derivation</option><option value="implementation">Implementation</option><option value="bugs">Bug / edge case</option><option value="complexity">Complexity</option><option value="communication">Explanation</option></select></label>
           <label>Explanation quality<select value={explanation ?? ""} onChange={event => setExplanation(event.target.value ? Number(event.target.value) : undefined)}><option value="">Not rated</option><option value="1">1 — could not explain</option><option value="2">2 — fragmented</option><option value="3">3 — adequate</option><option value="4">4 — clear</option><option value="5">5 — interview-ready</option></select></label>
         </div>
-        <div className="outcome-buttons"><button disabled={busy} className="result green" onClick={() => submit("green")}>✓ Independent</button><button disabled={busy} className="result yellow" onClick={() => submit("yellow")}>◐ Assisted / slow</button><button disabled={busy} className="result red" onClick={() => submit("red")}>× Needed solution</button><button disabled={busy} className="result skip" onClick={() => submit("skipped")}>→ Skip today</button></div>
+        <div className="outcome-buttons"><button disabled={busy} className="result green" onClick={() => submit("green")}>{hintsUsed || !independent ? "✓ Solved (records assisted)" : "✓ Independent"}</button><button disabled={busy} className="result yellow" onClick={() => submit("yellow")}>◐ Assisted / slow</button><button disabled={busy} className="result red" onClick={() => submit("red")}>× Needed solution</button><button disabled={busy} className="result skip" onClick={() => submit("skipped")}>→ Skip today</button></div>
         {message && <p className="form-message" role="status">{message}</p>}
       </section>
     </main>

@@ -1,4 +1,12 @@
-import type { Bootstrap, ProblemDetail, ProblemListResponse, Result } from "./types";
+import type {
+  Bootstrap,
+  LearningProfile,
+  LearningRoadmap,
+  LearningToday,
+  ProblemDetail,
+  ProblemListResponse,
+  Result,
+} from "./types";
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -14,6 +22,9 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   bootstrap: () => request<Bootstrap>("/api/bootstrap"),
+  learningToday: () => request<LearningToday>("/api/learning/today"),
+  learningProfile: () => request<LearningProfile>("/api/learning/profile"),
+  learningRoadmap: () => request<LearningRoadmap>("/api/learning/roadmap"),
   problems: (params: Record<string, string | number | undefined>) => {
     const search = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {

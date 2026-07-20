@@ -15,6 +15,16 @@ from app.db import init_db, transaction
 from app.repository import seed_content
 
 
+def trusted_hosts() -> list[str]:
+    defaults = ["127.0.0.1", "localhost", "testserver"]
+    configured = [
+        host.strip()
+        for host in os.getenv("INTERVIEW_PREP_ALLOWED_HOSTS", "").split(",")
+        if host.strip()
+    ]
+    return [*defaults, *configured]
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
@@ -32,7 +42,7 @@ app = FastAPI(
 )
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["127.0.0.1", "localhost", "testserver"],
+    allowed_hosts=trusted_hosts(),
 )
 app.add_middleware(
     CORSMiddleware,

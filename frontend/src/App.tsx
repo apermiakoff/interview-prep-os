@@ -1,29 +1,39 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import type { Bootstrap } from "./types";
-import { EvidenceView } from "./views/EvidenceView";
-import { PatternsView } from "./views/PatternsView";
-import { ProblemCollectionView } from "./views/ProblemCollectionView";
+import { BrainView } from "./views/BrainView";
+import { LibraryView } from "./views/LibraryView";
 import { ProblemDetailView } from "./views/ProblemDetailView";
 import { ProfileView } from "./views/ProfileView";
+import { RoadmapView } from "./views/RoadmapView";
 import { SolveView } from "./views/SolveView";
 import { TodayView } from "./views/TodayView";
 
 const navigation = [
   ["today", "Today"],
-  ["queue", "Queue"],
-  ["reviews", "Reviews"],
-  ["problems", "Problems"],
-  ["patterns", "Patterns"],
-  ["evidence", "Evidence"],
+  ["brain", "Brain"],
+  ["roadmap", "Roadmap"],
+  ["library", "Library"],
 ] as const;
 
+// Old bookmarks and in-app links keep working after the IA change.
+const legacyRoutes: Record<string, string> = {
+  queue: "library/queue",
+  reviews: "library/reviews",
+  problems: "library",
+  evidence: "brain",
+  patterns: "roadmap",
+  lab: "today",
+};
+
 function currentRoute() {
-  return window.location.hash.slice(1) || "today";
+  const raw = window.location.hash.slice(1) || "today";
+  return legacyRoutes[raw] || raw;
 }
 
 function routeLabel(route: string) {
   if (route.startsWith("problem/")) return "Problem";
+  if (route.startsWith("library")) return "Library";
   if (route === "solve") return "Solve Room";
   if (route === "profile") return "Profile";
   return navigation.find(([name]) => name === route)?.[1] || "Today";
@@ -58,30 +68,30 @@ export function App() {
 
   const navigate = (next: string) => {
     window.location.hash = next;
-    setRoute(next);
+    setRoute(legacyRoutes[next] || next);
   };
 
   if (error) return <div className="boot-state"><span className="brand-mark">IP</span><h1>Could not open the cockpit.</h1><p>{error}</p><button className="button primary" onClick={() => window.location.reload()}>Retry</button></div>;
   if (!data) return <div className="boot-state"><span className="brand-mark pulse">IP</span><h1>Preparing today’s retrieval…</h1></div>;
 
-  const activeNav = route.startsWith("problem/") ? "problems" : route;
+  const activeNav = route.startsWith("problem/") ? "library" : route.startsWith("library") ? "library" : route;
   const problemId = route.startsWith("problem/") ? Number(route.split("/")[1]) : null;
+  const librarySub = route === "library/queue" ? "queue" : route === "library/reviews" ? "reviews" : "all";
+  const dueCount = (data.workload.status_counts.overdue || 0) + (data.workload.status_counts.due || 0);
 
   return (
     <div className="app-shell">
       <header className="masthead">
         <button className="brand" onClick={() => navigate("today")} aria-label="Interview Prep OS home"><span className="brand-mark">IP</span><span><strong>Interview Prep</strong><em>Operating System</em></span></button>
-        <nav aria-label="Primary navigation">{navigation.map(([name, label]) => <button key={name} onClick={() => navigate(name)} className={activeNav === name ? "active" : ""} aria-current={activeNav === name ? "page" : undefined}>{label}{name === "reviews" && (data.workload.status_counts.overdue || data.workload.status_counts.due) ? <i className="nav-count">{(data.workload.status_counts.overdue || 0) + (data.workload.status_counts.due || 0)}</i> : null}</button>)}</nav>
+        <nav aria-label="Primary navigation">{navigation.map(([name, label]) => <button key={name} onClick={() => navigate(name)} className={activeNav === name ? "active" : ""} aria-current={activeNav === name ? "page" : undefined}>{label}{name === "library" && dueCount ? <i className="nav-count">{dueCount}</i> : null}</button>)}</nav>
         <div className="masthead-actions"><span className="private-badge">private</span><button className="theme-toggle" aria-label="Toggle color theme" onClick={() => setTheme(value => value === "ink" ? "paper" : "ink")}><span /><span /></button><button className={`profile-button ${route === "profile" ? "active" : ""}`} onClick={() => navigate("profile")} aria-label="Profile">AP</button></div>
       </header>
 
       {route === "today" && <TodayView data={data} navigate={navigate} />}
       {route === "solve" && <SolveView data={data} onData={setData} navigate={navigate} />}
-      {route === "queue" && <ProblemCollectionView data={data} navigate={navigate} scope="queue" eyebrow="Training control center" title="The queue, without the pile-up." description="Search, filter, and maintain every learning obligation. Only 25 rows are rendered at once." allowBulk />}
-      {route === "reviews" && <ProblemCollectionView data={data} navigate={navigate} scope="reviews" eyebrow="Adaptive retrieval inbox" title="Reviews ordered by evidence." description="Overdue and upcoming reconstruction work, separated from the general roadmap." />}
-      {route === "problems" && <ProblemCollectionView data={data} navigate={navigate} scope="all" eyebrow="Problem library" title="Every problem has its own history." description="Browse the roadmap and evidence without turning Today into a catalog." />}
-      {route === "evidence" && <EvidenceView data={data} />}
-      {route === "patterns" && <PatternsView data={data} navigate={navigate} />}
+      {route === "brain" && <BrainView data={data} navigate={navigate} />}
+      {route === "roadmap" && <RoadmapView navigate={navigate} />}
+      {route.startsWith("library") && <LibraryView data={data} navigate={navigate} sub={librarySub} />}
       {route === "profile" && <ProfileView data={data} />}
       {problemId != null && Number.isFinite(problemId) && <ProblemDetailView problemId={problemId} navigate={navigate} />}
 

@@ -45,6 +45,7 @@ interface Props {
   title: string;
   description: string;
   allowBulk?: boolean;
+  showTrackFilter?: boolean;
 }
 
 export function ProblemCollectionView({
@@ -55,11 +56,13 @@ export function ProblemCollectionView({
   title,
   description,
   allowBulk = false,
+  showTrackFilter = false,
 }: Props) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [pattern, setPattern] = useState("");
   const [difficulty, setDifficulty] = useState("");
+  const [track, setTrack] = useState("");
   const [sort, setSort] = useState(scope === "reviews" ? "due" : "priority");
   const [page, setPage] = useState(1);
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
@@ -71,7 +74,7 @@ export function ProblemCollectionView({
   useEffect(() => {
     setPage(1);
     setSelected(new Set());
-  }, [query, status, pattern, difficulty, sort, scope]);
+  }, [query, status, pattern, difficulty, track, sort, scope]);
 
   useEffect(() => {
     let current = true;
@@ -83,6 +86,7 @@ export function ProblemCollectionView({
         status,
         pattern,
         difficulty,
+        track,
         scope,
         sort,
         page,
@@ -99,7 +103,7 @@ export function ProblemCollectionView({
       current = false;
       window.clearTimeout(timer);
     };
-  }, [query, status, pattern, difficulty, sort, scope, page]);
+  }, [query, status, pattern, difficulty, track, sort, scope, page]);
 
   const counts = response?.status_counts || {};
   const visibleStatuses = STATUS_ORDER.filter(value => counts[value]);
@@ -142,6 +146,7 @@ export function ProblemCollectionView({
 
       <section className="collection-toolbar" aria-label="Problem filters">
         <label className="search-field"><span aria-hidden="true">⌕</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search title or slug…" aria-label="Search problems" /></label>
+        {showTrackFilter && <label><span>Track</span><select value={track} onChange={event => setTrack(event.target.value)} aria-label="Track filter"><option value="">All tracks</option>{(response?.tracks || []).map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}
         <label><span>Pattern</span><select value={pattern} onChange={event => setPattern(event.target.value)}><option value="">All patterns</option>{data.patterns.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
         <label><span>Difficulty</span><select value={difficulty} onChange={event => setDifficulty(event.target.value)}><option value="">Any difficulty</option><option>Easy</option><option>Medium</option><option>Hard</option></select></label>
         <label><span>Sort</span><select value={sort} onChange={event => setSort(event.target.value)}><option value="priority">Roadmap priority</option><option value="due">Next review</option><option value="recent">Recent activity</option><option value="evidence">Evidence count</option><option value="title">Title</option></select></label>

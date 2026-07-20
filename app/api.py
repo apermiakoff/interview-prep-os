@@ -4,7 +4,13 @@ import sqlite3
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.db import connect, database_path
+from app.db import connect, database_path, transaction
+from app.learning import (
+    daily_recommendation,
+    learning_profile,
+    learning_roadmap,
+    skill_detail,
+)
 from app.repository import bootstrap, problem_catalog, problem_detail
 from app.schemas import AttemptCreate, HealthResponse, HintCreate, NotesUpdate, QueueBulkUpdate
 from app.services import (
@@ -41,6 +47,7 @@ def get_problems(
     status: str | None = Query(default=None, max_length=120),
     pattern: str | None = Query(default=None, max_length=120),
     difficulty: str | None = Query(default=None, max_length=20),
+    track: str | None = Query(default=None, max_length=60),
     scope: str = Query(default="all", pattern="^(all|queue|reviews)$"),
     sort: str = Query(default="priority", pattern="^(priority|due|title|evidence|recent)$"),
     page: int = Query(default=1, ge=1),
@@ -68,11 +75,39 @@ def get_problems(
             statuses=statuses,
             pattern=pattern,
             difficulty=difficulty,
+            track=track,
             scope=scope,
             sort=sort,
             page=page,
             page_size=page_size,
         )
+
+
+@router.get("/learning/profile")
+def get_learning_profile() -> dict:
+    with transaction() as connection:
+        return learning_profile(connection)
+
+
+@router.get("/learning/today")
+def get_learning_today(timebox: int = Query(default=35, ge=10, le=240)) -> dict:
+    with transaction() as connection:
+        return daily_recommendation(connection, timebox_minutes=timebox)
+
+
+@router.get("/learning/roadmap")
+def get_learning_roadmap() -> dict:
+    with transaction() as connection:
+        return learning_roadmap(connection)
+
+
+@router.get("/skills/{skill_id:path}")
+def get_skill(skill_id: str) -> dict:
+    with transaction() as connection:
+        result = skill_detail(connection, skill_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="skill not found")
+    return result
 
 
 @router.get("/problems/{problem_id}")

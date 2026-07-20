@@ -11,15 +11,18 @@ Private, evidence-based interview training system for daily retrieval practice, 
 
 ## Working surfaces
 
-- **Today:** one assignment, review queue, selection rationale, early diagnosis
-- **Queue:** filtered, sortable, paginated training obligations with bounded rendering and bulk state changes
-- **Reviews:** adaptive retrieval inbox separated from the general backlog
-- **Problems:** searchable catalog with one evidence/history workspace per problem
+- **Today:** one evidence-ranked intervention, its rationale, current risk, and next gate
+- **Brain:** ranked error patterns, cited evidence, interventions, and memory risk
+- **Roadmap:** Outtalent-first curriculum tracks plus a six-dimension competency heatmap
+- **Library:** filtered, sortable, paginated queue, reviews, and canonical problem catalog
 - **Solve Room:** wall-clock timer, autosaved notes, progressive hints, normalized outcomes
-- **Evidence:** immutable attempts, blockers, honest confidence, forgetting curve
-- **Patterns:** retrieval-first pattern packs rather than a problem catalog
-- **Problem lessons:** semantic-event visualizers attached only to matching problem detail pages
+- **Problem workspaces:** skill mappings, prerequisites, attempts, reviews, related problems, and optional authored lessons
+- **Problem lessons:** semantic-event visualizers attached only to matching workspaces
 - **Profile:** public LeetCode context kept separate from private learning evidence
+
+The learning engine is deterministic and policy-versioned. It models recognition,
+derivation, implementation, testing, explanation, and delayed retention separately;
+assisted success never becomes independent evidence.
 
 ## Local development
 
@@ -48,6 +51,15 @@ uv run python scripts/import_legacy.py \
 
 The import is idempotent.
 
+Import the normalized Outtalent curriculum and curated skill graph with:
+
+```bash
+uv run python scripts/import_outtalent.py
+```
+
+Curriculum placements are separate from canonical problems. The same problem may
+appear repeatedly or in multiple tracks without duplicating its attempt evidence.
+
 ## Verification
 
 ```bash
@@ -66,7 +78,13 @@ docker compose up -d --build
 curl http://127.0.0.1:8765/api/health
 ```
 
-Access through an SSH tunnel:
+Preferred private access through Tailscale Serve:
+
+```text
+https://ubuntu-16gb-nbg1-1-hermes.tail1fd6b9.ts.net/
+```
+
+SSH forwarding remains available as a fallback:
 
 ```bash
 ssh -N -L 8765:127.0.0.1:8765 <user>@<vm-host>

@@ -7,6 +7,7 @@ from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from app.db import backfill_attempt_errors, backfill_pattern_skills
 from app.lessons import lesson_for
 from app.roadmap import PATTERN_CATALOG
 from app.scheduler import retrievability
@@ -37,6 +38,10 @@ def seed_content(connection: sqlite3.Connection) -> None:
                 now_iso(),
             ),
         )
+    # Patterns may be seeded after the backfill migration ran on an empty
+    # database, so keep the coarse pattern->skill mirror in sync here too.
+    backfill_pattern_skills(connection)
+    backfill_attempt_errors(connection)
 
 
 def ensure_problem(
@@ -49,11 +54,30 @@ def ensure_problem(
     difficulty: str | None = None,
     pattern_id: str | None = None,
 ) -> int:
+    if leetcode_id is not None:
+        # Canonical identity check: if another row already owns this LeetCode id,
+        # reuse it rather than creating a slug-keyed duplicate.
+        existing = connection.execute(
+            "SELECT id, slug FROM problems WHERE leetcode_id = ?", (leetcode_id,)
+        ).fetchone()
+        if existing is not None and existing["slug"] != slug:
+            connection.execute(
+                """
+                UPDATE problems SET
+                  url=COALESCE(?, url),
+                  difficulty=COALESCE(?, difficulty),
+                  pattern_id=COALESCE(pattern_id, ?)
+                WHERE id = ?
+                """,
+                (url, difficulty, pattern_id, existing["id"]),
+            )
+            return int(existing["id"])
     connection.execute(
         """
         INSERT INTO problems(leetcode_id, slug, title, url, difficulty, pattern_id)
         VALUES(?, ?, ?, ?, ?, ?)
         ON CONFLICT(slug) DO UPDATE SET
+          leetcode_id=COALESCE(problems.leetcode_id, excluded.leetcode_id),
           title=excluded.title,
           url=COALESCE(excluded.url, problems.url),
           difficulty=COALESCE(excluded.difficulty, problems.difficulty),
@@ -233,6 +257,7 @@ def problem_catalog(
     statuses: list[str] | None = None,
     pattern: str | None = None,
     difficulty: str | None = None,
+    track: str | None = None,
     scope: str = "all",
     sort: str = "priority",
     page: int = 1,
@@ -251,6 +276,12 @@ def problem_catalog(
     if difficulty:
         params["difficulty"] = difficulty
         base_filters.append("LOWER(COALESCE(difficulty, '')) = LOWER(:difficulty)")
+    if track:
+        params["track"] = track
+        base_filters.append(
+            "id IN (SELECT problem_id FROM curriculum_items "
+            "WHERE curriculum_id = :track AND problem_id IS NOT NULL)"
+        )
     if scope == "queue":
         base_filters.append("queue_state IS NOT NULL")
     elif scope == "reviews":
@@ -311,6 +342,9 @@ def problem_catalog(
         """,
         params,
     ).fetchall()
+    track_rows = connection.execute(
+        "SELECT id, title, kind, priority FROM curricula ORDER BY priority, id"
+    ).fetchall()
     return {
         "items": [dict(row) for row in rows],
         "total": total,
@@ -318,6 +352,7 @@ def problem_catalog(
         "page_size": page_size,
         "pages": max(1, (total + page_size - 1) // page_size),
         "status_counts": {row["status"]: row["count"] for row in count_rows},
+        "tracks": [dict(row) for row in track_rows],
     }
 
 
@@ -353,6 +388,7 @@ def problem_detail(connection: sqlite3.Connection, problem_id: int) -> dict | No
         "SELECT * FROM memory_states WHERE problem_id = ?", (problem_id,)
     ).fetchone()
     assignment = active_assignment(connection)
+    lesson = lesson_for(item.get("pattern_id"))
     return {
         "problem": item,
         "attempts": [dict(event) for event in event_rows],
@@ -361,8 +397,103 @@ def problem_detail(connection: sqlite3.Connection, problem_id: int) -> dict | No
         "active_assignment": assignment
         if assignment and assignment["problem_id"] == problem_id
         else None,
-        "lesson": lesson_for(item.get("pattern_id")),
+        "lesson": lesson,
+        "lesson_availability": {
+            "status": "authored" if lesson else "none",
+            "label": "Authored visual lesson"
+            if lesson
+            else "No authored lesson yet — nothing is auto-generated",
+        },
+        "skills": _problem_skills_payload(connection, problem_id),
+        "prerequisites": _problem_prerequisites(connection, problem_id),
+        "related_problems": _related_problems(connection, problem_id),
+        "placements": _problem_placements(connection, problem_id),
     }
+
+
+def _skill_state_summary(connection: sqlite3.Connection, skill_id: str) -> dict:
+    rows = connection.execute(
+        """
+        SELECT dimension, state, evidence_count, independent_count, updated_at
+        FROM learner_skill_states WHERE skill_id = ?
+        """,
+        (skill_id,),
+    ).fetchall()
+    return {row["dimension"]: dict(row) for row in rows}
+
+
+def _problem_skills_payload(connection: sqlite3.Connection, problem_id: int) -> list[dict]:
+    rows = connection.execute(
+        """
+        SELECT ps.skill_id, ps.role, ps.weight, ps.provenance,
+               s.title, s.kind, s.parent_id
+        FROM problem_skills ps JOIN skills s ON s.id = ps.skill_id
+        WHERE ps.problem_id = ?
+        ORDER BY CASE ps.role WHEN 'core' THEN 0 WHEN 'supporting' THEN 1 ELSE 2 END,
+                 ps.weight DESC, ps.skill_id
+        """,
+        (problem_id,),
+    ).fetchall()
+    output = []
+    for row in rows:
+        entry = dict(row)
+        entry["states"] = _skill_state_summary(connection, row["skill_id"])
+        output.append(entry)
+    return output
+
+
+def _problem_prerequisites(connection: sqlite3.Connection, problem_id: int) -> list[dict]:
+    rows = connection.execute(
+        """
+        SELECT DISTINCT se.from_skill AS skill_id, s.title, se.weight
+        FROM problem_skills ps
+        JOIN skill_edges se ON se.to_skill = ps.skill_id AND se.edge_type = 'prerequisite'
+        JOIN skills s ON s.id = se.from_skill
+        WHERE ps.problem_id = ? AND ps.role = 'core'
+        ORDER BY se.from_skill
+        """,
+        (problem_id,),
+    ).fetchall()
+    output = []
+    for row in rows:
+        entry = dict(row)
+        entry["states"] = _skill_state_summary(connection, row["skill_id"])
+        output.append(entry)
+    return output
+
+
+def _related_problems(connection: sqlite3.Connection, problem_id: int) -> list[dict]:
+    rows = connection.execute(
+        """
+        SELECT DISTINCT p.id, p.leetcode_id, p.slug, p.title, p.difficulty,
+               ps2.skill_id AS shared_skill,
+               (SELECT COUNT(*) FROM attempt_events e WHERE e.problem_id = p.id
+                  AND e.result != 'skipped') AS attempt_count
+        FROM problem_skills ps1
+        JOIN problem_skills ps2 ON ps2.skill_id = ps1.skill_id AND ps2.problem_id != ps1.problem_id
+        JOIN problems p ON p.id = ps2.problem_id
+        WHERE ps1.problem_id = ? AND ps1.role = 'core' AND ps2.role IN ('core', 'variation')
+        ORDER BY p.title
+        LIMIT 8
+        """,
+        (problem_id,),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def _problem_placements(connection: sqlite3.Connection, problem_id: int) -> list[dict]:
+    rows = connection.execute(
+        """
+        SELECT ci.curriculum_id, c.title AS curriculum_title, c.kind, c.priority,
+               ci.week_label, ci.section, ci.topic, ci.position, ci.confidence,
+               ci.source_screenshot
+        FROM curriculum_items ci JOIN curricula c ON c.id = ci.curriculum_id
+        WHERE ci.problem_id = ?
+        ORDER BY c.priority, ci.position
+        """,
+        (problem_id,),
+    ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def bootstrap(connection: sqlite3.Connection) -> dict:

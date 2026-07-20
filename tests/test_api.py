@@ -1,7 +1,17 @@
 from fastapi.testclient import TestClient
 
 from app.db import connect
-from app.main import app
+from app.main import app, trusted_hosts
+
+
+def test_trusted_host_configuration_and_rejection(monkeypatch):
+    monkeypatch.setenv(
+        "INTERVIEW_PREP_ALLOWED_HOSTS",
+        "ubuntu-16gb-nbg1-1-hermes.tail1fd6b9.ts.net",
+    )
+    assert "ubuntu-16gb-nbg1-1-hermes.tail1fd6b9.ts.net" in trusted_hosts()
+    with TestClient(app) as client:
+        assert client.get("/api/health", headers={"host": "evil.example"}).status_code == 400
 
 
 def test_bootstrap_and_hint_reveal(db_path):
