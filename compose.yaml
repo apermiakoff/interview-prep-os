@@ -1,0 +1,23 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      INTERVIEW_PREP_DB: /data/interview-prep.db
+      INTERVIEW_PREP_STATIC: /app/frontend/dist
+      INTERVIEW_PREP_LEGACY_STATE: /legacy/coach/state.json
+      INTERVIEW_PREP_LEGACY_EVENTS: /legacy/coach/events.jsonl
+      INTERVIEW_PREP_LEGACY_PROFILE: /legacy/coach/profile.json
+      INTERVIEW_PREP_LEGACY_ACTION: /legacy/scripts/action.py
+    volumes:
+      - ./data:/data
+      - /home/hermes/.hermes/leetcode-coach:/legacy/coach
+      - /home/hermes/.hermes/scripts/leetcode-coach:/legacy/scripts:ro
+    ports:
+      - "127.0.0.1:8765:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
