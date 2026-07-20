@@ -1,4 +1,4 @@
-import type { Bootstrap, Result } from "./types";
+import type { Bootstrap, ProblemDetail, ProblemListResponse, Result } from "./types";
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -14,6 +14,19 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   bootstrap: () => request<Bootstrap>("/api/bootstrap"),
+  problems: (params: Record<string, string | number | undefined>) => {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") search.set(key, String(value));
+    });
+    return request<ProblemListResponse>(`/api/problems?${search.toString()}`);
+  },
+  problem: (id: number) => request<ProblemDetail>(`/api/problems/${id}`),
+  updateQueue: (problemIds: number[], state: string) =>
+    request<{ updated: number; state: string }>("/api/queue", {
+      method: "PUT",
+      body: JSON.stringify({ problem_ids: problemIds, state }),
+    }),
   revealHint: (assignmentId: string, level: string) =>
     request<{ level: string; text: string; highest_hint: string }>("/api/hints", {
       method: "POST",

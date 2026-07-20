@@ -31,6 +31,7 @@ export function TodayView({ data, navigate }: { data: Bootstrap; navigate: (rout
           <div><span>Pattern visibility</span><strong>{active.highest_hint ? "Revealed by hint" : "Hidden for retrieval"}</strong></div>
           <div><span>Previous evidence</span><strong>{previous ? `${previous.result} · ${previous.highest_hint || "H0"} · ${previous.failure_tag || "unclassified"}` : "No prior attempt"}</strong></div>
           <div><span>Memory</span><strong>{memory ? `${memory.stability_days.toFixed(1)}d stability · ${memory.evidence_count} observations` : "Not calibrated"}</strong></div>
+          <div><span>Full queue</span><strong>{data.workload.total} problems · {(data.workload.status_counts.overdue || 0) + (data.workload.status_counts.due || 0)} due</strong></div>
         </aside>
       </section>
 
@@ -42,8 +43,13 @@ export function TodayView({ data, navigate }: { data: Bootstrap; navigate: (rout
         </article>
         <article className="ruled-panel">
           <header><span className="eyebrow">Due retrievals</span><h2>{due.length ? `${due.length} review${due.length === 1 ? "" : "s"} ready` : "Queue is clear"}</h2></header>
-          {due.length ? due.map(review => <button key={review.id} className="review-line" onClick={() => navigate("solve")}><span>{review.stage}</span><strong>{review.title}</strong><em>{review.due_on}</em></button>) : <p>No overdue work. The scheduler will surface the next obligation when evidence says it matters.</p>}
+          {due.length ? due.map(review => <button key={review.id} className="review-line" onClick={() => navigate(`problem/${review.problem_id}`)}><span>{review.stage}</span><strong>{review.title}</strong><em>{review.due_on}</em></button>) : <p>No overdue work. The scheduler will surface the next obligation when evidence says it matters.</p>}
         </article>
+      </section>
+
+      <section className="queue-preview reveal">
+        <div className="section-rule"><span>Coming through the roadmap</span><button className="button-link text-link" onClick={() => navigate("queue")}>Open full queue →</button></div>
+        <div>{data.workload.preview.filter(item => item.status !== "active").slice(0, 4).map(item => <button key={item.id} onClick={() => navigate(`problem/${item.id}`)}><span>{item.roadmap_week != null ? `W${item.roadmap_week}` : "—"}</span><strong>{item.title}</strong><em>{item.pattern_title || "Unclassified"}</em><i className={`status-pill ${item.status}`}>{item.status}</i></button>)}</div>
       </section>
 
       <section className="diagnosis-strip reveal">

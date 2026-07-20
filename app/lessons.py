@@ -96,5 +96,12 @@ GRAPH = {
 }
 
 
+def lesson_for(pattern_id: str | None) -> dict | None:
+    if pattern_id == LOW_LINK_PATTERN["id"]:
+        return {"pattern": LOW_LINK_PATTERN, "graph": GRAPH, "trace": LOW_LINK_TRACE}
+    return None
+
+
 def lesson_payload() -> dict:
-    return {"pattern": LOW_LINK_PATTERN, "graph": GRAPH, "trace": LOW_LINK_TRACE}
+    """Backward-compatible bootstrap lesson for the active low-link assignment."""
+    return lesson_for(LOW_LINK_PATTERN["id"]) or {}

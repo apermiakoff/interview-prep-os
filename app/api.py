@@ -2,12 +2,19 @@ from __future__ import annotations
 
 import sqlite3
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.db import connect, database_path
-from app.repository import bootstrap
-from app.schemas import AttemptCreate, HealthResponse, HintCreate, NotesUpdate
-from app.services import ConflictError, NotFoundError, record_attempt, reveal_hint, save_notes
+from app.repository import bootstrap, problem_catalog, problem_detail
+from app.schemas import AttemptCreate, HealthResponse, HintCreate, NotesUpdate, QueueBulkUpdate
+from app.services import (
+    ConflictError,
+    NotFoundError,
+    record_attempt,
+    reveal_hint,
+    save_notes,
+    update_queue,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -26,6 +33,60 @@ def health() -> HealthResponse:
 def get_bootstrap() -> dict:
     with connect() as connection:
         return bootstrap(connection)
+
+
+@router.get("/problems")
+def get_problems(
+    search: str = Query(default="", max_length=120),
+    status: str | None = Query(default=None, max_length=120),
+    pattern: str | None = Query(default=None, max_length=120),
+    difficulty: str | None = Query(default=None, max_length=20),
+    scope: str = Query(default="all", pattern="^(all|queue|reviews)$"),
+    sort: str = Query(default="priority", pattern="^(priority|due|title|evidence|recent)$"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=10, le=100),
+) -> dict:
+    statuses = [value for value in (status or "").split(",") if value]
+    allowed = {
+        "active",
+        "overdue",
+        "due",
+        "upcoming",
+        "blocked",
+        "backlog",
+        "learning",
+        "stable",
+        "archived",
+        "catalog",
+    }
+    if any(value not in allowed for value in statuses):
+        raise HTTPException(status_code=422, detail="invalid problem status")
+    with connect() as connection:
+        return problem_catalog(
+            connection,
+            search=search,
+            statuses=statuses,
+            pattern=pattern,
+            difficulty=difficulty,
+            scope=scope,
+            sort=sort,
+            page=page,
+            page_size=page_size,
+        )
+
+
+@router.get("/problems/{problem_id}")
+def get_problem(problem_id: int) -> dict:
+    with connect() as connection:
+        result = problem_detail(connection, problem_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="problem not found")
+    return result
+
+
+@router.put("/queue")
+def bulk_update_queue(payload: QueueBulkUpdate) -> dict:
+    return update_queue(payload)
 
 
 @router.post("/attempts")

@@ -7,7 +7,8 @@ from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from app.lessons import LOW_LINK_PATTERN, lesson_payload
+from app.lessons import lesson_for
+from app.roadmap import PATTERN_CATALOG
 from app.scheduler import retrievability
 
 MOSCOW = ZoneInfo("Europe/Moscow")
@@ -18,24 +19,24 @@ def now_iso() -> str:
 
 
 def seed_content(connection: sqlite3.Connection) -> None:
-    pattern = LOW_LINK_PATTERN
-    connection.execute(
-        """
-        INSERT INTO patterns(id, title, description, recognition_signals, created_at)
-        VALUES(?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          title=excluded.title,
-          description=excluded.description,
-          recognition_signals=excluded.recognition_signals
-        """,
-        (
-            pattern["id"],
-            pattern["title"],
-            pattern["description"],
-            json.dumps(pattern["recognition_signals"], ensure_ascii=False),
-            now_iso(),
-        ),
-    )
+    for pattern in PATTERN_CATALOG:
+        connection.execute(
+            """
+            INSERT INTO patterns(id, title, description, recognition_signals, created_at)
+            VALUES(?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              title=excluded.title,
+              description=excluded.description,
+              recognition_signals=excluded.recognition_signals
+            """,
+            (
+                pattern["id"],
+                pattern["title"],
+                pattern["description"],
+                json.dumps(pattern["recognition_signals"], ensure_ascii=False),
+                now_iso(),
+            ),
+        )
 
 
 def ensure_problem(
@@ -56,7 +57,7 @@ def ensure_problem(
           title=excluded.title,
           url=COALESCE(excluded.url, problems.url),
           difficulty=COALESCE(excluded.difficulty, problems.difficulty),
-          pattern_id=COALESCE(excluded.pattern_id, problems.pattern_id)
+          pattern_id=COALESCE(problems.pattern_id, excluded.pattern_id)
         """,
         (leetcode_id, slug, title, url, difficulty, pattern_id),
     )
@@ -181,12 +182,196 @@ def pattern_summaries(connection: sqlite3.Connection) -> list[dict]:
     return output
 
 
+CATALOG_CTE = """
+WITH base AS (
+  SELECT p.id, p.leetcode_id, p.slug, p.title, p.url, p.difficulty, p.pattern_id,
+         pt.title AS pattern_title,
+         q.state AS queue_state, q.priority, q.roadmap_week, q.roadmap_position,
+         q.scheduled_for,
+         EXISTS(
+           SELECT 1 FROM assignments a
+           WHERE a.problem_id = p.id AND a.status IN ('active', 'carryover')
+         ) AS is_active,
+         (SELECT COUNT(*) FROM attempt_events e WHERE e.problem_id = p.id) AS evidence_count,
+         (SELECT COUNT(*) FROM attempt_events e WHERE e.problem_id = p.id AND e.independent = 1)
+           AS independent_count,
+         (SELECT MAX(e.occurred_on) FROM attempt_events e WHERE e.problem_id = p.id)
+           AS last_attempt_on,
+         (SELECT e.result FROM attempt_events e WHERE e.problem_id = p.id
+          ORDER BY e.occurred_on DESC, e.created_at DESC LIMIT 1) AS last_result,
+         (SELECT MIN(r.due_on) FROM reviews r
+          WHERE r.problem_id = p.id AND r.status != 'completed') AS next_due,
+         m.stability_days, m.retrievability, m.evidence_count AS memory_evidence_count
+  FROM problems p
+  LEFT JOIN patterns pt ON pt.id = p.pattern_id
+  LEFT JOIN queue_items q ON q.problem_id = p.id
+  LEFT JOIN memory_states m ON m.problem_id = p.id
+), catalog AS (
+  SELECT *,
+    CASE
+      WHEN is_active = 1 THEN 'active'
+      WHEN queue_state = 'blocked' THEN 'blocked'
+      WHEN queue_state = 'archived' THEN 'archived'
+      WHEN next_due < :today THEN 'overdue'
+      WHEN next_due = :today THEN 'due'
+      WHEN next_due IS NOT NULL THEN 'upcoming'
+      WHEN evidence_count > 0 AND independent_count >= 2 AND COALESCE(stability_days, 0) >= 7
+        THEN 'stable'
+      WHEN evidence_count > 0 THEN 'learning'
+      WHEN queue_state IN ('scheduled', 'backlog') THEN 'backlog'
+      ELSE 'catalog'
+    END AS status
+  FROM base
+)
+"""
+
+
+def problem_catalog(
+    connection: sqlite3.Connection,
+    *,
+    search: str = "",
+    statuses: list[str] | None = None,
+    pattern: str | None = None,
+    difficulty: str | None = None,
+    scope: str = "all",
+    sort: str = "priority",
+    page: int = 1,
+    page_size: int = 25,
+) -> dict:
+    page = max(1, page)
+    page_size = min(100, max(10, page_size))
+    params: dict[str, Any] = {"today": datetime.now(MOSCOW).date().isoformat()}
+    base_filters: list[str] = []
+    if search.strip():
+        params["search"] = f"%{search.strip().lower()}%"
+        base_filters.append("(LOWER(title) LIKE :search OR LOWER(slug) LIKE :search)")
+    if pattern:
+        params["pattern"] = pattern
+        base_filters.append("pattern_id = :pattern")
+    if difficulty:
+        params["difficulty"] = difficulty
+        base_filters.append("LOWER(COALESCE(difficulty, '')) = LOWER(:difficulty)")
+    if scope == "queue":
+        base_filters.append("queue_state IS NOT NULL")
+    elif scope == "reviews":
+        base_filters.append("next_due IS NOT NULL AND status != 'archived'")
+
+    status_filter = ""
+    if statuses:
+        placeholders = []
+        for index, value in enumerate(statuses):
+            key = f"status_{index}"
+            params[key] = value
+            placeholders.append(f":{key}")
+        status_filter = f"status IN ({', '.join(placeholders)})"
+
+    facet_where = " AND ".join(base_filters) or "1 = 1"
+    list_filters = list(base_filters)
+    if status_filter:
+        list_filters.append(status_filter)
+    elif scope == "queue":
+        list_filters.append("status != 'archived'")
+    list_where = " AND ".join(list_filters) or "1 = 1"
+    order_map = {
+        "priority": (
+            "COALESCE(priority, 99999), COALESCE(roadmap_week, 999), "
+            "COALESCE(roadmap_position, 999), title"
+        ),
+        "due": "CASE WHEN next_due IS NULL THEN 1 ELSE 0 END, next_due, title",
+        "title": "title COLLATE NOCASE",
+        "evidence": "evidence_count DESC, title COLLATE NOCASE",
+        "recent": (
+            "CASE WHEN last_attempt_on IS NULL THEN 1 ELSE 0 END, last_attempt_on DESC, title"
+        ),
+    }
+    order_by = order_map.get(sort, order_map["priority"])
+    total = int(
+        connection.execute(
+            f"{CATALOG_CTE} SELECT COUNT(*) FROM catalog WHERE {list_where}", params
+        ).fetchone()[0]
+    )
+    params["limit"] = page_size
+    params["offset"] = (page - 1) * page_size
+    rows = connection.execute(
+        f"""
+        {CATALOG_CTE}
+        SELECT * FROM catalog
+        WHERE {list_where}
+        ORDER BY {order_by}
+        LIMIT :limit OFFSET :offset
+        """,
+        params,
+    ).fetchall()
+    count_rows = connection.execute(
+        f"""
+        {CATALOG_CTE}
+        SELECT status, COUNT(*) AS count FROM catalog
+        WHERE {facet_where}
+        GROUP BY status
+        """,
+        params,
+    ).fetchall()
+    return {
+        "items": [dict(row) for row in rows],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": max(1, (total + page_size - 1) // page_size),
+        "status_counts": {row["status"]: row["count"] for row in count_rows},
+    }
+
+
+def problem_detail(connection: sqlite3.Connection, problem_id: int) -> dict | None:
+    row = connection.execute(
+        """
+        SELECT p.*, pt.title AS pattern_title, pt.description AS pattern_description,
+               pt.recognition_signals, q.state AS queue_state, q.priority,
+               q.roadmap_week, q.roadmap_position
+        FROM problems p
+        LEFT JOIN patterns pt ON pt.id = p.pattern_id
+        LEFT JOIN queue_items q ON q.problem_id = p.id
+        WHERE p.id = ?
+        """,
+        (problem_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    item = dict(row)
+    item["recognition_signals"] = _json(item.get("recognition_signals"), [])
+    event_rows = connection.execute(
+        """
+        SELECT * FROM attempt_events WHERE problem_id = ?
+        ORDER BY occurred_on DESC, created_at DESC LIMIT 100
+        """,
+        (problem_id,),
+    ).fetchall()
+    review_rows = connection.execute(
+        "SELECT * FROM reviews WHERE problem_id = ? ORDER BY due_on",
+        (problem_id,),
+    ).fetchall()
+    memory_row = connection.execute(
+        "SELECT * FROM memory_states WHERE problem_id = ?", (problem_id,)
+    ).fetchone()
+    assignment = active_assignment(connection)
+    return {
+        "problem": item,
+        "attempts": [dict(event) for event in event_rows],
+        "reviews": [dict(review) for review in review_rows],
+        "memory": dict(memory_row) if memory_row else None,
+        "active_assignment": assignment
+        if assignment and assignment["problem_id"] == problem_id
+        else None,
+        "lesson": lesson_for(item.get("pattern_id")),
+    }
+
+
 def bootstrap(connection: sqlite3.Connection) -> dict:
     event_rows = attempts(connection)
     outcomes = Counter(row["result"] for row in event_rows)
     failures = Counter(row["failure_tag"] for row in event_rows if row.get("failure_tag"))
     today = datetime.now(MOSCOW).date().isoformat()
     active = active_assignment(connection)
+    queue_snapshot = problem_catalog(connection, scope="queue", page_size=10)
     if active:
         if active["assigned_on"] > today:
             active["date_label"] = "Next session"
@@ -204,7 +389,12 @@ def bootstrap(connection: sqlite3.Connection) -> dict:
         "memory": memory_states(connection),
         "patterns": pattern_summaries(connection),
         "profile": profile(connection),
-        "lesson": lesson_payload(),
+        "lesson": lesson_for(active.get("pattern_id")) if active else None,
+        "workload": {
+            "total": queue_snapshot["total"],
+            "status_counts": queue_snapshot["status_counts"],
+            "preview": queue_snapshot["items"][:5],
+        },
         "evidence": {
             "count": len(event_rows),
             "outcomes": dict(outcomes),

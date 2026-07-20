@@ -16,6 +16,7 @@ One Docker service serves both the built React application and `/api/*`. It bind
 - `app/services.py`: attempt/hint/notes workflows.
 - `app/api.py`: validated HTTP boundary.
 - `app/lessons.py`: versioned pattern content and semantic visualization traces.
+- `app/roadmap.py`: study-plan classification and idempotent roadmap catalog import.
 - `frontend/`: training cockpit.
 
 ## Persistence
@@ -24,6 +25,7 @@ SQLite uses WAL mode, foreign keys, busy timeout, and schema migrations in `sche
 
 - `patterns`
 - `problems`
+- `queue_items`
 - `assignments`
 - `attempt_events` (append-only)
 - `reviews`
@@ -32,7 +34,11 @@ SQLite uses WAL mode, foreign keys, busy timeout, and schema migrations in `sche
 - `notes`
 - `hint_events` (append-only)
 
-Attempt events are immutable. Derived memory and review rows are updated in the same `BEGIN IMMEDIATE` transaction. The legacy importer uses deterministic source IDs and `INSERT OR IGNORE`.
+Attempt events are immutable. Derived memory and review rows are updated in the same `BEGIN IMMEDIATE` transaction. The legacy importer uses deterministic source IDs and `INSERT OR IGNORE`. Queue state is separate from canonical problem identity, so backlog, blocked, scheduled, and archived lifecycle changes do not rewrite evidence.
+
+## Catalog scalability
+
+`GET /api/problems` applies search, scope, status, pattern, difficulty, sort, and pagination on the server. The UI requests 25 rows at a time. Attempts, reviews, memory, and lesson traces are loaded only from `GET /api/problems/{id}` when a problem workspace opens. A 250-item isolated fixture verifies pagination without inserting synthetic records into the personal database.
 
 ## Adaptive scheduling
 
@@ -40,7 +46,7 @@ The scheduler treats Accepted, independent retrieval, hint level, delay, duratio
 
 ## Visualization
 
-Visualizations store semantic events, not videos or arbitrary frame blobs. A trace contains operations such as `visit_node`, `tree_edge`, `back_edge`, `merge_low`, and `bridge_check`. React renderers animate these events deterministically and can attach explanations/prediction pauses.
+Visualizations store semantic events, not videos or arbitrary frame blobs. A trace contains operations such as `visit_node`, `tree_edge`, `back_edge`, `merge_low`, and `bridge_check`. React renderers animate these events deterministically and can attach explanations/prediction pauses. Lessons are resolved by pattern and attached to problem detail; there is no global visualizer destination that implies every task is Low-link DFS.
 
 ## Security
 

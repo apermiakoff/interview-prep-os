@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.db import database_path, init_db, transaction
 from app.repository import ensure_problem, seed_content
+from app.roadmap import parse_roadmap
 
 
 def slug_from(url: str | None, title: str) -> str:
@@ -36,6 +37,11 @@ def main() -> int:
     parser.add_argument("--state", type=Path, required=True)
     parser.add_argument("--events", type=Path, required=True)
     parser.add_argument("--profile", type=Path, required=True)
+    parser.add_argument(
+        "--plan",
+        type=Path,
+        default=Path("/home/hermes/aleksandr-interview-study-plan.md"),
+    )
     parser.add_argument("--db", type=Path, default=database_path())
     args = parser.parse_args()
 
@@ -47,6 +53,38 @@ def main() -> int:
     problem_ids: dict[str, int] = {}
     with transaction(args.db) as connection:
         seed_content(connection)
+        for entry in parse_roadmap(args.plan.expanduser()):
+            problem_id = ensure_problem(
+                connection,
+                leetcode_id=None,
+                slug=entry.slug,
+                title=entry.title,
+                url=f"https://leetcode.com/problems/{entry.slug}/",
+                pattern_id=entry.pattern_id,
+            )
+            problem_ids[entry.title] = problem_id
+            connection.execute(
+                """
+                INSERT INTO queue_items(
+                  problem_id, state, priority, roadmap_week, roadmap_position,
+                  source, created_at, updated_at
+                ) VALUES(?, 'backlog', ?, ?, ?, 'study-plan', ?, ?)
+                ON CONFLICT(problem_id) DO UPDATE SET
+                  priority=excluded.priority,
+                  roadmap_week=excluded.roadmap_week,
+                  roadmap_position=excluded.roadmap_position,
+                  source=excluded.source,
+                  updated_at=excluded.updated_at
+                """,
+                (
+                    problem_id,
+                    entry.week * 100 + entry.position,
+                    entry.week,
+                    entry.position,
+                    datetime.now().isoformat(),
+                    datetime.now().isoformat(),
+                ),
+            )
         connection.execute(
             "UPDATE assignments SET status='completed' WHERE status IN ('active', 'carryover')"
         )
@@ -63,6 +101,15 @@ def main() -> int:
                 pattern_id=active.get("pattern") or "graph/low-link-bridges",
             )
             problem_ids[str(active.get("leetcode_id") or title)] = problem_id
+            connection.execute(
+                """
+                INSERT INTO queue_items(problem_id, state, priority, source, created_at, updated_at)
+                VALUES(?, 'scheduled', 0, 'active-assignment', ?, ?)
+                ON CONFLICT(problem_id) DO UPDATE SET
+                  state='scheduled', updated_at=excluded.updated_at
+                """,
+                (problem_id, datetime.now().isoformat(), datetime.now().isoformat()),
+            )
             assignment_id = (
                 active.get("review_id") or f"active:{active.get('leetcode_id', problem_id)}"
             )
@@ -112,6 +159,18 @@ def main() -> int:
                     pattern_id=event.get("pattern"),
                 )
                 problem_ids[key] = problem_id
+            connection.execute(
+                """
+                INSERT INTO queue_items(problem_id, state, priority, source, created_at, updated_at)
+                VALUES(?, 'learning', 100, 'attempt-history', ?, ?)
+                ON CONFLICT(problem_id) DO UPDATE SET
+                  state=CASE
+                    WHEN queue_items.state IN ('blocked', 'archived', 'scheduled')
+                    THEN queue_items.state ELSE 'learning' END,
+                  updated_at=excluded.updated_at
+                """,
+                (problem_id, datetime.now().isoformat(), datetime.now().isoformat()),
+            )
             connection.execute(
                 """
                 INSERT OR IGNORE INTO attempt_events(

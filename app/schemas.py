@@ -59,6 +59,19 @@ class NotesUpdate(BaseModel):
     content: str = Field(max_length=20_000)
 
 
+class QueueBulkUpdate(BaseModel):
+    problem_ids: list[int] = Field(min_length=1, max_length=100)
+    state: str
+
+    @field_validator("state")
+    @classmethod
+    def valid_state(cls, value: str) -> str:
+        allowed = {"backlog", "scheduled", "blocked", "archived"}
+        if value not in allowed:
+            raise ValueError("invalid queue state")
+        return value
+
+
 class HealthResponse(BaseModel):
     status: str
     database: str

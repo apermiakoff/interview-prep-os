@@ -8,4 +8,4 @@ def test_sqlite_backup_is_readable(tmp_path):
     target = backup(source, tmp_path / "backups")
     assert target.exists()
     with connect(target) as connection:
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 1
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 2

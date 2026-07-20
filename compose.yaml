@@ -9,10 +9,12 @@ services:
       INTERVIEW_PREP_LEGACY_EVENTS: /legacy/coach/events.jsonl
       INTERVIEW_PREP_LEGACY_PROFILE: /legacy/coach/profile.json
       INTERVIEW_PREP_LEGACY_ACTION: /legacy/scripts/action.py
+      INTERVIEW_PREP_LEGACY_PLAN: /legacy/plan.md
     volumes:
       - ./data:/data
       - /home/hermes/.hermes/leetcode-coach:/legacy/coach
       - /home/hermes/.hermes/scripts/leetcode-coach:/legacy/scripts:ro
+      - /home/hermes/aleksandr-interview-study-plan.md:/legacy/plan.md:ro
     ports:
       - "127.0.0.1:8765:8000"
     healthcheck:

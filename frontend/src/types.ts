@@ -96,6 +96,49 @@ export interface Lesson {
   trace: TraceEvent[];
 }
 
+export interface ProblemSummary {
+  id: number;
+  leetcode_id?: number;
+  slug: string;
+  title: string;
+  url?: string;
+  difficulty?: string;
+  pattern_id?: string;
+  pattern_title?: string;
+  queue_state?: string;
+  status: string;
+  priority?: number;
+  roadmap_week?: number;
+  roadmap_position?: number;
+  evidence_count: number;
+  independent_count: number;
+  last_attempt_on?: string;
+  last_result?: Result;
+  next_due?: string;
+  stability_days?: number;
+}
+
+export interface ProblemListResponse {
+  items: ProblemSummary[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  status_counts: Record<string, number>;
+}
+
+export interface ProblemDetail {
+  problem: ProblemSummary & {
+    pattern_description?: string;
+    recognition_signals: string[];
+  };
+  attempts: Attempt[];
+  reviews: Review[];
+  memory: Omit<MemoryState, "title" | "curve"> | null;
+  active_assignment: Assignment | null;
+  lesson: Lesson | null;
+}
+
 export interface Bootstrap {
   generated_at: string;
   today: string;
@@ -106,7 +149,12 @@ export interface Bootstrap {
   memory: MemoryState[];
   patterns: PatternSummary[];
   profile: Record<string, any> | null;
-  lesson: Lesson;
+  lesson: Lesson | null;
+  workload: {
+    total: number;
+    status_counts: Record<string, number>;
+    preview: ProblemSummary[];
+  };
   evidence: {
     count: number;
     outcomes: Record<string, number>;

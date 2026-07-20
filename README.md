@@ -12,10 +12,13 @@ Private, evidence-based interview training system for daily retrieval practice, 
 ## Working surfaces
 
 - **Today:** one assignment, review queue, selection rationale, early diagnosis
+- **Queue:** filtered, sortable, paginated training obligations with bounded rendering and bulk state changes
+- **Reviews:** adaptive retrieval inbox separated from the general backlog
+- **Problems:** searchable catalog with one evidence/history workspace per problem
 - **Solve Room:** wall-clock timer, autosaved notes, progressive hints, normalized outcomes
 - **Evidence:** immutable attempts, blockers, honest confidence, forgetting curve
 - **Patterns:** retrieval-first pattern packs rather than a problem catalog
-- **Visual Lab:** reusable semantic-event player and low-link DFS lesson
+- **Problem lessons:** semantic-event visualizers attached only to matching problem detail pages
 - **Profile:** public LeetCode context kept separate from private learning evidence
 
 ## Local development
@@ -39,7 +42,8 @@ npm run dev
 uv run python scripts/import_legacy.py \
   --state ~/.hermes/leetcode-coach/state.json \
   --events ~/.hermes/leetcode-coach/events.jsonl \
-  --profile ~/.hermes/leetcode-coach/profile.json
+  --profile ~/.hermes/leetcode-coach/profile.json \
+  --plan ~/aleksandr-interview-study-plan.md
 ```
 
 The import is idempotent.

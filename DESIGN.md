@@ -36,12 +36,15 @@ A focused private study instrument, not a generic SaaS dashboard. The visual lan
 1. Today's learning obligation
 2. Action: begin/resume attempt
 3. Review load and previous evidence
-4. Diagnosis and memory evidence
-5. Public profile context
+4. Queue and review inbox for high-volume maintenance
+5. Problem detail for history, lesson, and memory evidence
+6. Public profile context
 
 ## Components
 
 Use ruled sections and whitespace before boxed cards. One dominant action per view. Monospace labels are small and sparse. Accent color is semantic, never decorative.
+
+Cards are reserved for the focused daily obligation. Collections use compact ruled rows, server-side filters, and 25-row pagination. A visualization belongs inside its matching problem workspace rather than global navigation.
 
 ## Motion
 

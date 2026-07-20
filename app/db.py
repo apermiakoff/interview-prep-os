@@ -29,6 +29,21 @@ CREATE TABLE IF NOT EXISTS problems (
     difficulty TEXT,
     pattern_id TEXT REFERENCES patterns(id)
 );
+CREATE INDEX IF NOT EXISTS ix_problems_title ON problems(title);
+CREATE INDEX IF NOT EXISTS ix_problems_pattern ON problems(pattern_id);
+CREATE TABLE IF NOT EXISTS queue_items (
+    problem_id INTEGER PRIMARY KEY REFERENCES problems(id),
+    state TEXT NOT NULL DEFAULT 'backlog',
+    priority INTEGER NOT NULL DEFAULT 500,
+    roadmap_week INTEGER,
+    roadmap_position INTEGER,
+    source TEXT NOT NULL DEFAULT 'manual',
+    scheduled_for TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_queue_state_priority
+ON queue_items(state, priority, roadmap_week, roadmap_position);
 CREATE TABLE IF NOT EXISTS assignments (
     id TEXT PRIMARY KEY,
     problem_id INTEGER NOT NULL REFERENCES problems(id),
@@ -61,6 +76,7 @@ CREATE TABLE IF NOT EXISTS attempt_events (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_attempts_problem_date ON attempt_events(problem_id, occurred_on);
+CREATE INDEX IF NOT EXISTS ix_attempts_result_date ON attempt_events(result, occurred_on);
 CREATE TABLE IF NOT EXISTS memory_states (
     problem_id INTEGER PRIMARY KEY REFERENCES problems(id),
     stability_days REAL NOT NULL,
@@ -129,6 +145,12 @@ def init_db(path: Path | None = None) -> None:
             """
             INSERT OR IGNORE INTO schema_migrations(version, applied_at)
             VALUES(1, datetime('now'))
+            """
+        )
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+            VALUES(2, datetime('now'))
             """
         )
 

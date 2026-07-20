@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 from app.db import connect, database_path, transaction
 from app.repository import bootstrap
 from app.scheduler import MemoryInput, schedule
-from app.schemas import AttemptCreate, HintCreate
+from app.schemas import AttemptCreate, HintCreate, QueueBulkUpdate
 
 MOSCOW = ZoneInfo("Europe/Moscow")
 HINT_RANK = {"H1": 1, "H2": 2, "H3": 3, "H4": 4}
@@ -57,9 +57,11 @@ def _sync_legacy(db_path: Path, paths: tuple[Path, Path, Path, Path]) -> None:
         str(events),
         "--profile",
         str(profile),
-        "--db",
-        str(db_path),
     ]
+    plan = os.getenv("INTERVIEW_PREP_LEGACY_PLAN")
+    if plan and Path(plan).exists():
+        command.extend(["--plan", plan])
+    command.extend(["--db", str(db_path)])
     completed = subprocess.run(command, capture_output=True, text=True, timeout=15, check=False)
     if completed.returncode != 0:
         raise ConflictError(completed.stderr.strip() or "legacy tracker synchronization failed")
@@ -334,3 +336,28 @@ def record_attempt(payload: AttemptCreate, path: Path | None = None) -> dict:
                 (memory.next_due.isoformat(), assignment["id"]),
             )
         return bootstrap(connection)
+
+
+def update_queue(payload: QueueBulkUpdate, path: Path | None = None) -> dict:
+    now = _now().isoformat()
+    updated = 0
+    with transaction(path or database_path()) as connection:
+        for problem_id in dict.fromkeys(payload.problem_ids):
+            exists = connection.execute(
+                "SELECT 1 FROM problems WHERE id = ?", (problem_id,)
+            ).fetchone()
+            if exists is None:
+                continue
+            connection.execute(
+                """
+                INSERT INTO queue_items(
+                  problem_id, state, priority, source, created_at, updated_at
+                ) VALUES(?, ?, 500, 'manual', ?, ?)
+                ON CONFLICT(problem_id) DO UPDATE SET
+                  state=excluded.state,
+                  updated_at=excluded.updated_at
+                """,
+                (problem_id, payload.state, now, now),
+            )
+            updated += 1
+    return {"updated": updated, "state": payload.state}
