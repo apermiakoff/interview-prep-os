@@ -1,11 +1,15 @@
 import type {
   Bootstrap,
+  HintRevealResponse,
   LearningProfile,
   LearningRoadmap,
   LearningToday,
+  LessonDocument,
   ProblemDetail,
   ProblemListResponse,
   Result,
+  SessionAttemptResponse,
+  SessionEnvelope,
 } from "./types";
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -58,4 +62,41 @@ export const api = {
     failure_tag: string;
     explanation_score?: number;
   }) => request<Bootstrap>("/api/attempts", { method: "POST", body: JSON.stringify(payload) }),
+  startProblemSession: (problemId: number, requestId?: string) =>
+    request<SessionEnvelope>(`/api/problems/${problemId}/practice-sessions`, {
+      method: "POST",
+      body: JSON.stringify(requestId ? { request_id: requestId } : {}),
+    }),
+  startAssignmentSession: (assignmentId: string) =>
+    request<SessionEnvelope>(`/api/assignments/${encodeURIComponent(assignmentId)}/sessions`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+  practiceSession: (sessionId: string) =>
+    request<SessionEnvelope>(`/api/practice-sessions/${encodeURIComponent(sessionId)}`),
+  revealSessionHint: (sessionId: string, level: string) =>
+    request<HintRevealResponse>(
+      `/api/practice-sessions/${encodeURIComponent(sessionId)}/hints/${level}/reveal`,
+      { method: "POST", body: JSON.stringify({}) },
+    ),
+  recordSessionAttempt: (sessionId: string, payload: {
+    event_id: string;
+    result: Result;
+    accepted: boolean;
+    independent: boolean;
+    duration_minutes?: number;
+    failure_tag: string;
+    explanation_score?: number;
+  }) =>
+    request<SessionAttemptResponse>(
+      `/api/practice-sessions/${encodeURIComponent(sessionId)}/attempts`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
+  abandonSession: (sessionId: string) =>
+    request<SessionEnvelope>(`/api/practice-sessions/${encodeURIComponent(sessionId)}/abandon`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+  problemLesson: (problemId: number) =>
+    request<LessonDocument>(`/api/problems/${problemId}/lesson`),
 };

@@ -9,6 +9,14 @@ from app.db import init_db, transaction
 from app.repository import ensure_problem, seed_content
 
 
+@pytest.fixture(autouse=True)
+def _isolated_database(tmp_path, monkeypatch):
+    """Every test runs against a throwaway database, even tests that never
+    request the db_path fixture: booting the FastAPI lifespan must not be able
+    to migrate or seed the real data/interview-prep.db."""
+    monkeypatch.setenv("INTERVIEW_PREP_DB", str(tmp_path / "isolated.db"))
+
+
 @pytest.fixture
 def db_path(tmp_path, monkeypatch):
     path = tmp_path / "test.db"

@@ -3,9 +3,23 @@ import { defineConfig, devices } from "@playwright/test";
 const externalBaseURL = process.env.PLAYWRIGHT_BASE_URL;
 const baseURL = externalBaseURL || "http://127.0.0.1:8788";
 
+if (externalBaseURL) {
+  const target = new URL(externalBaseURL);
+  const local = target.hostname === "127.0.0.1" || target.hostname === "localhost";
+  if (!local || target.port === "8765" || process.env.PLAYWRIGHT_ALLOW_DISPOSABLE !== "yes") {
+    throw new Error(
+      "Refusing external/production Playwright target. Use the hermetic default, or explicitly set "
+      + "PLAYWRIGHT_ALLOW_DISPOSABLE=yes for a disposable localhost server that is not port 8765.",
+    );
+  }
+}
+
 export default defineConfig({
   testDir: "frontend/e2e",
   timeout: 30_000,
+  // The paper-first flows perform real writes against one shared disposable
+  // database; a single worker keeps them deterministic.
+  workers: 1,
   use: {
     baseURL,
     trace: "retain-on-failure",

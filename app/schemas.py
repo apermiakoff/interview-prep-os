@@ -55,6 +55,40 @@ class HintCreate(BaseModel):
         return value
 
 
+class SessionStart(BaseModel):
+    """Start (or idempotently continue) a practice session."""
+
+    request_id: str | None = Field(default=None, min_length=8, max_length=100)
+    timebox_minutes: int | None = Field(default=None, ge=10, le=240)
+    goal: str | None = Field(default=None, max_length=500)
+
+
+class SessionAttemptCreate(BaseModel):
+    """Immutable evidence reported when a practice session ends."""
+
+    event_id: str | None = Field(default=None, min_length=8, max_length=100)
+    result: str
+    accepted: bool = False
+    independent: bool = False
+    duration_minutes: int | None = Field(default=None, ge=0, le=360)
+    failure_tag: str = "unspecified"
+    explanation_score: float | None = Field(default=None, ge=0, le=5)
+
+    @field_validator("result")
+    @classmethod
+    def valid_result(cls, value: str) -> str:
+        if value not in RESULTS:
+            raise ValueError("invalid result")
+        return value
+
+    @field_validator("failure_tag")
+    @classmethod
+    def valid_failure(cls, value: str) -> str:
+        if value not in FAILURES:
+            raise ValueError("invalid failure tag")
+        return value
+
+
 class NotesUpdate(BaseModel):
     content: str = Field(max_length=20_000)
 

@@ -10,8 +10,8 @@ const SUBVIEWS = [
 export function LibraryView({ data, navigate, sub }: { data: Bootstrap; navigate: (route: string) => void; sub: "all" | "queue" | "reviews" }) {
   const copy = {
     all: {
-      title: "Every problem, every track, one history.",
-      description: "Search and filter across the Outtalent and deep supplemental tracks. 25 rows render at a time.",
+      title: "Practice any problem.",
+      description: "Search by title, number, or slug and start a paper session on anything — scheduled work stays scheduled.",
     },
     queue: {
       title: "The queue, without the pile-up.",

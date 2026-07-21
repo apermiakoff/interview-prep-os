@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.db import transaction
 from app.main import app
-from app.repository import ensure_problem, problem_catalog, problem_detail
+from app.repository import ensure_problem, problem_catalog, problem_detail, seed_content
 from app.roadmap import parse_roadmap
 
 
@@ -70,7 +70,7 @@ def test_catalog_is_filtered_and_paginated_server_side(db_path):
     assert [item["title"] for item in filtered["items"]] == ["Scale Problem 149"]
 
 
-def test_problem_detail_attaches_only_matching_lesson(db_path):
+def test_problem_detail_reports_honest_content_provenance(db_path):
     with transaction(db_path) as connection:
         critical = connection.execute(
             "SELECT id FROM problems WHERE slug='critical-connections-in-a-network'"
@@ -83,10 +83,21 @@ def test_problem_detail_attaches_only_matching_lesson(db_path):
             url=None,
             pattern_id="graph/traversal",
         )
+        # The pattern-skill mirror runs at seed time; run it for the new problem
+        # so the resolver sees the mapping.
+        seed_content(connection)
         critical_detail = problem_detail(connection, critical)
         generic_detail = problem_detail(connection, generic)
-        assert critical_detail is not None and critical_detail["lesson"] is not None
-        assert generic_detail is not None and generic_detail["lesson"] is None
+    # Detail carries availability/provenance only; bodies live behind the
+    # lesson and hint endpoints.
+    assert critical_detail is not None and "lesson" not in critical_detail
+    assert critical_detail["content"]["lesson"]["provenance"] == "curated"
+    assert critical_detail["content"]["hints"]["provenance"] == "curated"
+    assert critical_detail["can_start_ad_hoc"] is True
+    assert generic_detail is not None
+    assert generic_detail["content"]["lesson"]["provenance"] == "generated"
+    assert generic_detail["content"]["lesson"]["generator"] == "deterministic-skill-scaffold/1.0"
+    assert generic_detail["can_start_ad_hoc"] is True
 
 
 def test_queue_bulk_update_and_invalid_status(db_path):

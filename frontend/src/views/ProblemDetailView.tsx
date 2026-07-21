@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { AlgorithmVisualizer } from "../components/AlgorithmVisualizer";
-import type { ProblemDetail, SkillStateCell } from "../types";
+import type { Bootstrap, LessonDocument, ProblemDetail, SkillStateCell } from "../types";
 
 const CORE_DIMENSIONS = ["recognition", "derivation", "implementation"] as const;
 
@@ -13,22 +13,60 @@ function stateSummary(states: Record<string, SkillStateCell>) {
   return parts.map(entry => `${entry.dimension} ${entry.cell!.state.replace("_", " ")}`).join(" · ");
 }
 
-export function ProblemDetailView({ problemId, navigate }: { problemId: number; navigate: (route: string) => void }) {
+function scheduledDate(value: string) {
+  return new Date(`${value}T12:00:00`).toLocaleDateString("en", { month: "long", day: "numeric" });
+}
+
+export function ProblemDetailView({ problemId, data, navigate }: { problemId: number; data: Bootstrap; navigate: (route: string) => void }) {
   const [detail, setDetail] = useState<ProblemDetail | null>(null);
   const [tab, setTab] = useState<"overview" | "attempts" | "reviews" | "lesson">("overview");
   const [error, setError] = useState("");
+  const [launching, setLaunching] = useState(false);
+  const [launchError, setLaunchError] = useState("");
+  const [lessonDoc, setLessonDoc] = useState<LessonDocument | null>(null);
+  const [lessonError, setLessonError] = useState("");
 
   useEffect(() => {
+    let current = true;
     setDetail(null);
     setError("");
     setTab("overview");
-    api.problem(problemId).then(setDetail).catch(reason => setError(reason instanceof Error ? reason.message : "Could not load problem."));
+    setLessonDoc(null);
+    setLessonError("");
+    api.problem(problemId)
+      .then(result => { if (current) setDetail(result); })
+      .catch(reason => { if (current) setError(reason instanceof Error ? reason.message : "Could not load problem."); });
+    return () => { current = false; };
   }, [problemId]);
+
+  // Lesson bodies are lazy: fetched only when the tab is opened.
+  useEffect(() => {
+    if (tab !== "lesson" || lessonDoc || lessonError) return;
+    let current = true;
+    api.problemLesson(problemId)
+      .then(result => { if (current) setLessonDoc(result); })
+      .catch(reason => { if (current) setLessonError(reason instanceof Error ? reason.message : "Could not load the lesson."); });
+    return () => { current = false; };
+  }, [tab, problemId, lessonDoc, lessonError]);
 
   if (error) return <main className="view page-shell" id="main-content"><button className="back-link" onClick={() => navigate("library")}>← Library</button><div className="empty-state">{error}</div></main>;
   if (!detail) return <main className="view page-shell" id="main-content"><div className="collection-loading">Loading problem workspace…</div></main>;
 
-  const { problem, attempts, reviews, memory, active_assignment: active, lesson, lesson_availability, skills, prerequisites, related_problems, placements } = detail;
+  const { problem, attempts, reviews, memory, content, scheduled_assignment, open_practice_session, skills, prerequisites, related_problems, placements } = detail;
+  const otherScheduled = data.active_assignment && data.active_assignment.problem_id !== problemId ? data.active_assignment : null;
+
+  const startPaperAttempt = async () => {
+    setLaunching(true);
+    setLaunchError("");
+    try {
+      const envelope = await api.startProblemSession(problemId);
+      navigate(`solve/${envelope.session.id}`);
+    } catch (reason) {
+      setLaunchError(reason instanceof Error ? reason.message : "Could not start the session.");
+      setLaunching(false);
+    }
+  };
+
   return (
     <main className="view page-shell problem-detail" id="main-content">
       <button className="back-link" onClick={() => navigate("library")}>← Library</button>
@@ -48,20 +86,41 @@ export function ProblemDetailView({ problemId, navigate }: { problemId: number; 
             </div>
           )}
           <div className="hero-actions">
-            {active && <button className="button primary" onClick={() => navigate("solve")}>Continue active session →</button>}
-            {problem.url && <a className="text-link" href={problem.url} target="_blank" rel="noreferrer">Open on LeetCode ↗</a>}
+            {scheduled_assignment ? (
+              <>
+                <button className="button primary" onClick={() => navigate("solve")}>
+                  Continue scheduled attempt →
+                </button>
+                <button className="button subtle" disabled={launching} onClick={startPaperAttempt}>
+                  {open_practice_session ? "Continue extra practice →" : "Practice extra →"}
+                </button>
+              </>
+            ) : (
+              <button className="button primary" disabled={launching} onClick={startPaperAttempt}>
+                {open_practice_session ? "Continue paper attempt →" : "Start paper attempt →"}
+              </button>
+            )}
+            <a className="text-link" href={problem.url || `https://leetcode.com/problems/${problem.slug}/`} target="_blank" rel="noreferrer">Open on LeetCode ↗</a>
           </div>
+          {scheduled_assignment && (
+            <p className="extra-practice-note">Extra practice creates a separate session; the scheduled assignment remains untouched.</p>
+          )}
+          {otherScheduled && !scheduled_assignment && (
+            <p className="extra-practice-note">Extra practice. {otherScheduled.title} remains scheduled for {scheduledDate(otherScheduled.assigned_on)}.</p>
+          )}
+          {launchError && <p className="form-message" role="status">{launchError}</p>}
         </div>
         <aside className="detail-facts">
           <div><span>Queue</span><strong>{problem.queue_state || "catalog"}</strong></div>
           <div><span>Evidence</span><strong>{attempts.length} attempt{attempts.length === 1 ? "" : "s"} · {attempts.filter(item => item.independent).length} independent</strong></div>
           <div><span>Next review</span><strong>{reviews.find(item => item.status !== "completed")?.due_on || memory?.next_due || "Not scheduled"}</strong></div>
-          <div><span>Lesson</span><strong>{lesson_availability.status === "authored" ? "Authored" : "None yet"}</strong></div>
+          <div><span>Lesson</span><strong className="fact-provenance">{content.lesson.label}</strong></div>
+          <div><span>Hints</span><strong className="fact-provenance">{content.hints.label}</strong></div>
         </aside>
       </header>
 
       <nav className="detail-tabs" aria-label="Problem sections">
-        {(["overview", "attempts", "reviews", "lesson"] as const).map(value => <button key={value} className={tab === value ? "active" : ""} onClick={() => setTab(value)}>{value === "lesson" ? `Lesson${lesson ? " · authored" : ""}` : value}</button>)}
+        {(["overview", "attempts", "reviews", "lesson"] as const).map(value => <button key={value} className={tab === value ? "active" : ""} onClick={() => setTab(value)}>{value === "lesson" ? `Lesson · ${content.lesson.provenance}` : value}</button>)}
       </nav>
 
       {tab === "overview" && <>
@@ -119,7 +178,39 @@ export function ProblemDetailView({ problemId, navigate }: { problemId: number; 
 
       {tab === "reviews" && <section className="detail-ledger"><div className="section-rule"><span>Review obligations</span><span>{reviews.filter(item => item.status !== "completed").length} open</span></div>{reviews.length ? reviews.map(review => <article className="review-detail-line" key={review.id}><time>{review.due_on}</time><div><strong>{review.stage}</strong><p>{review.status.replaceAll("_", " ")}</p></div><i className={`status-pill ${review.status === "completed" ? "stable" : "upcoming"}`}>{review.status}</i></article>) : <div className="empty-state">No review has been scheduled yet.</div>}</section>}
 
-      {tab === "lesson" && (lesson ? <section className="embedded-lesson"><div className="section-heading compact"><span className="eyebrow">{lesson_availability.label} · hand-built, not generated</span><h2>{lesson.pattern.title}</h2><p>A deterministic semantic-event visualization authored for this pattern.</p></div><AlgorithmVisualizer lesson={lesson} /></section> : <div className="empty-state lesson-empty"><strong>{lesson_availability.label}.</strong><span>Attempts, hints, reviews, and skill evidence all work without it. A deep authored lesson can be attached later; the system does not fabricate one.</span></div>)}
+      {tab === "lesson" && (
+        <section className="embedded-lesson">
+          {lessonError && <div className="empty-state">{lessonError}</div>}
+          {!lessonError && !lessonDoc && <div className="collection-loading">Resolving lesson…</div>}
+          {lessonDoc?.provenance === "curated" && lessonDoc.lesson && (
+            <>
+              <div className="section-heading compact"><span className="eyebrow">{lessonDoc.label} · hand-built, not generated</span><h2>{lessonDoc.lesson.pattern.title}</h2><p>A deterministic semantic-event visualization authored for this pattern.</p></div>
+              <AlgorithmVisualizer lesson={lessonDoc.lesson} />
+            </>
+          )}
+          {lessonDoc?.provenance === "generated" && lessonDoc.scaffold && (
+            <>
+              <div className="section-heading compact">
+                <span className="eyebrow">{lessonDoc.label} · {lessonDoc.generator}</span>
+                <h2>Practice scaffold</h2>
+                <p>Assembled from this problem's skill map — targeted questions, not an authored walkthrough. It will never pretend to hold a worked solution.</p>
+              </div>
+              <ol className="scaffold-stages">
+                {lessonDoc.scaffold.stages.map(stage => (
+                  <li className="scaffold-stage" key={stage.id}>
+                    <h3>{stage.title}</h3>
+                    <p className="stage-intent">{stage.intent}</p>
+                    <ul>{stage.prompts.map(prompt => <li key={prompt}>{prompt}</li>)}</ul>
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
+          {lessonDoc && lessonDoc.availability === "unavailable" && (
+            <div className="empty-state lesson-empty"><strong>{lessonDoc.label}.</strong><span>Attempts, hints, reviews, and skill evidence all work without it. Nothing is fabricated to fill the gap.</span></div>
+          )}
+        </section>
+      )}
     </main>
   );
 }

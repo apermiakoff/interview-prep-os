@@ -229,6 +229,73 @@ CREATE TABLE IF NOT EXISTS learning_decisions (
 CREATE INDEX IF NOT EXISTS ix_learning_decisions_date ON learning_decisions(decided_on, kind);
 """
 
+# Migration 5: practice sessions. A session is an execution context (scheduled or
+# ad hoc paper practice); attempt_events stay the only evidence of record. Additive:
+# existing attempt rows keep session_id NULL and no evidence table is rebuilt.
+SESSION_SCHEMA = """
+CREATE TABLE IF NOT EXISTS practice_sessions (
+    id TEXT PRIMARY KEY,
+    problem_id INTEGER NOT NULL REFERENCES problems(id),
+    assignment_id TEXT REFERENCES assignments(id),
+    origin TEXT NOT NULL CHECK(origin IN ('scheduled', 'ad_hoc')),
+    status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'completed', 'abandoned')),
+    mode TEXT NOT NULL DEFAULT 'paper practice',
+    goal TEXT NOT NULL DEFAULT '',
+    timebox_minutes INTEGER NOT NULL DEFAULT 35,
+    highest_hint TEXT CHECK(highest_hint IN ('H1', 'H2', 'H3', 'H4')),
+    request_id TEXT UNIQUE,
+    started_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    completed_at TEXT,
+    CHECK ((origin = 'scheduled') = (assignment_id IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS ix_practice_sessions_problem_status
+ON practice_sessions(problem_id, status);
+CREATE INDEX IF NOT EXISTS ix_practice_sessions_assignment ON practice_sessions(assignment_id);
+CREATE TABLE IF NOT EXISTS session_hint_events (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES practice_sessions(id),
+    level TEXT NOT NULL CHECK(level IN ('H1', 'H2', 'H3', 'H4')),
+    occurred_at TEXT NOT NULL,
+    UNIQUE (session_id, level)
+);
+ALTER TABLE attempt_events ADD COLUMN session_id TEXT REFERENCES practice_sessions(id);
+CREATE INDEX IF NOT EXISTS ix_attempts_session ON attempt_events(session_id);
+"""
+
+# Migration 6: integrity guards for the session layer. Additive only: request_log
+# gains nullable ownership columns (pre-upgrade rows keep NULL and stay valid), and
+# the triggers constrain new writes without validating or rewriting existing rows.
+# The cross-table invariant — a scheduled session executes its assignment's problem —
+# cannot live in a CHECK constraint (SQLite forbids subqueries there), so triggers
+# enforce it at every insert and at any rewrite of the pairing columns.
+INTEGRITY_SCHEMA = """
+ALTER TABLE request_log ADD COLUMN scope TEXT;
+ALTER TABLE request_log ADD COLUMN fingerprint TEXT;
+ALTER TABLE request_log ADD COLUMN updated_at TEXT;
+CREATE TRIGGER IF NOT EXISTS trg_sessions_match_assignment_problem_insert
+BEFORE INSERT ON practice_sessions
+FOR EACH ROW
+WHEN NEW.assignment_id IS NOT NULL
+BEGIN
+    SELECT RAISE(ABORT, 'practice session problem does not match assignment problem')
+    WHERE (
+        SELECT problem_id FROM assignments WHERE id = NEW.assignment_id
+    ) IS NOT NEW.problem_id;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_sessions_match_assignment_problem_update
+BEFORE UPDATE OF problem_id, assignment_id ON practice_sessions
+FOR EACH ROW
+WHEN NEW.assignment_id IS NOT NULL
+BEGIN
+    SELECT RAISE(ABORT, 'practice session problem does not match assignment problem')
+    WHERE (
+        SELECT problem_id FROM assignments WHERE id = NEW.assignment_id
+    ) IS NOT NEW.problem_id;
+END;
+"""
+
+
 # Hierarchical error taxonomy. Top-level ids intentionally match the legacy
 # failure_tag vocabulary ('bugs' maps to 'testing') so the backfill is honest.
 ERROR_TYPE_SEED = [
@@ -306,6 +373,14 @@ def _migrate_learning_backfill(connection: sqlite3.Connection) -> None:
     backfill_attempt_errors(connection)
 
 
+def _migrate_sessions(connection: sqlite3.Connection) -> None:
+    _begin_schema_migration(connection, SESSION_SCHEMA)
+
+
+def _migrate_integrity(connection: sqlite3.Connection) -> None:
+    _begin_schema_migration(connection, INTEGRITY_SCHEMA)
+
+
 def seed_error_types(connection: sqlite3.Connection) -> None:
     for error_id, title, parent, description in ERROR_TYPE_SEED:
         connection.execute(
@@ -377,6 +452,8 @@ MIGRATIONS: list[tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (2, "baseline marker (hint/request log)", _migrate_baseline_marker),
     (3, "curriculum + learning schema", _migrate_learning_schema),
     (4, "pattern-skill and failure-tag backfill", _migrate_learning_backfill),
+    (5, "practice sessions + session hint events", _migrate_sessions),
+    (6, "idempotency ownership + scheduled-session consistency guards", _migrate_integrity),
 ]
 
 LATEST_VERSION = MIGRATIONS[-1][0]

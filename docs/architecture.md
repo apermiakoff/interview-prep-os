@@ -15,9 +15,12 @@ One Docker service serves both the built React application and `/api/*`. It bind
 - `app/scheduler.py`: pure adaptive-memory calculations.
 - `app/learning.py`: deterministic skill evidence, trap detection, retention, and daily decisions.
 - `app/curriculum.py`: normalized curriculum and skill-graph import.
-- `app/services.py`: attempt/hint/notes workflows.
+- `app/services.py`: legacy-compatible attempt/hint/notes workflows.
+- `app/attempts.py`: shared attempt-evidence service (normalization, memory, reviews, structured errors) used by both the compatibility endpoints and practice sessions.
+- `app/sessions.py`: practice sessions — scheduled and ad hoc execution contexts, sequential hint reveals, abandonment.
+- `app/content.py`: deterministic instructional content resolver (curated precedence, generated skill scaffold, provenance labels).
 - `app/api.py`: validated HTTP boundary.
-- `app/lessons.py`: versioned pattern content and semantic visualization traces.
+- `app/lessons.py`: versioned curated pattern content, hint ladder, and semantic visualization traces.
 - `app/roadmap.py`: study-plan classification and idempotent roadmap catalog import.
 - `frontend/`: training cockpit.
 
@@ -40,6 +43,7 @@ SQLite uses WAL mode, foreign keys, busy timeout, and schema migrations in `sche
 - `error_types` and `attempt_errors`
 - `learner_skill_states`
 - `learning_decisions`
+- `practice_sessions` and `session_hint_events` (execution contexts; `attempt_events.session_id` links evidence to the session that produced it)
 
 Attempt events are immutable. Derived memory and review rows are updated in the same `BEGIN IMMEDIATE` transaction. The legacy importer uses deterministic source IDs and `INSERT OR IGNORE`. Queue state is separate from canonical problem identity, so backlog, blocked, scheduled, and archived lifecycle changes do not rewrite evidence.
 
@@ -55,6 +59,30 @@ The learner model derives six independent dimensions: recognition, derivation,
 implementation, testing, explanation, and retention. Recommendations persist the
 policy version, candidate inputs, constraints, selected problem, and factual rationale.
 Thresholds and score weights are product policy rather than scientific constants.
+
+## Practice sessions and instructional content
+
+Three entities stay distinct: a *scheduled assignment* is the formal daily
+commitment; a *practice session* is one execution context (origin `scheduled`
+or `ad_hoc`); an *attempt event* is the immutable evidence a session produces.
+Ad hoc sessions may create attempt/memory/review evidence but never modify an
+assignment row, never invoke the legacy coach subprocess, and never mark the
+daily assignment complete. The catalog status `active` remains scheduled-only.
+
+Sessions are paper-first: the Solve room frames the attempt (goal, timebox,
+Clarify/Derive/Verify prompts) and the actual reading/implementation happens on
+LeetCode. Hints unlock strictly H1→H4; the first reveal requires an explicit
+confirmation that the attempt records as assisted, each reveal returns exactly
+one body, and unrevealed bodies never appear in bootstrap, problem detail, or
+session GET payloads.
+
+Instructional content is resolved deterministically per problem
+(`app/content.py`): curated material (the low-link lesson and hint ladder,
+authored assignment hints) always wins; every other mapped problem receives a
+provenance-labeled generated scaffold (`deterministic-skill-scaffold/1.0`)
+assembled at request time from stored metadata only — never presented as
+curated, never claiming a worked solution. Content GETs are pure reads and
+create no learner evidence.
 
 ## Curriculum model
 

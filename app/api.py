@@ -4,6 +4,7 @@ import sqlite3
 
 from fastapi import APIRouter, HTTPException, Query
 
+from app.content import lesson_document
 from app.db import connect, database_path, transaction
 from app.learning import (
     daily_recommendation,
@@ -12,7 +13,16 @@ from app.learning import (
     skill_detail,
 )
 from app.repository import bootstrap, problem_catalog, problem_detail
-from app.schemas import AttemptCreate, HealthResponse, HintCreate, NotesUpdate, QueueBulkUpdate
+from app.schemas import (
+    HINTS,
+    AttemptCreate,
+    HealthResponse,
+    HintCreate,
+    NotesUpdate,
+    QueueBulkUpdate,
+    SessionAttemptCreate,
+    SessionStart,
+)
 from app.services import (
     ConflictError,
     NotFoundError,
@@ -20,6 +30,14 @@ from app.services import (
     reveal_hint,
     save_notes,
     update_queue,
+)
+from app.sessions import (
+    abandon_session,
+    get_session,
+    record_session_attempt,
+    reveal_session_hint,
+    start_ad_hoc_session,
+    start_scheduled_session,
 )
 
 router = APIRouter(prefix="/api")
@@ -117,6 +135,77 @@ def get_problem(problem_id: int) -> dict:
     if result is None:
         raise HTTPException(status_code=404, detail="problem not found")
     return result
+
+
+@router.get("/problems/{problem_id}/lesson")
+def get_problem_lesson(problem_id: int) -> dict:
+    """Full lesson body, resolved lazily and provenance-labeled. Pure read: a
+    content view never creates learner evidence."""
+    with connect() as connection:
+        document = lesson_document(connection, problem_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="problem not found")
+    return document
+
+
+def _session_errors(exc: Exception) -> HTTPException:
+    if isinstance(exc, NotFoundError):
+        return HTTPException(status_code=404, detail=str(exc))
+    if isinstance(exc, ConflictError):
+        return HTTPException(status_code=409, detail=str(exc))
+    if isinstance(exc, sqlite3.IntegrityError):
+        return HTTPException(status_code=409, detail="request could not be recorded")
+    raise exc
+
+
+@router.post("/problems/{problem_id}/practice-sessions")
+def create_practice_session(problem_id: int, payload: SessionStart) -> dict:
+    try:
+        return start_ad_hoc_session(problem_id, payload)
+    except (NotFoundError, ConflictError, sqlite3.IntegrityError) as exc:
+        raise _session_errors(exc) from exc
+
+
+@router.post("/assignments/{assignment_id}/sessions")
+def create_assignment_session(assignment_id: str, payload: SessionStart) -> dict:
+    try:
+        return start_scheduled_session(assignment_id, payload)
+    except (NotFoundError, ConflictError, sqlite3.IntegrityError) as exc:
+        raise _session_errors(exc) from exc
+
+
+@router.get("/practice-sessions/{session_id}")
+def get_practice_session(session_id: str) -> dict:
+    try:
+        return get_session(session_id)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/practice-sessions/{session_id}/hints/{level}/reveal")
+def reveal_practice_hint(session_id: str, level: str) -> dict:
+    if level not in HINTS:
+        raise HTTPException(status_code=422, detail="invalid hint level")
+    try:
+        return reveal_session_hint(session_id, level)
+    except (NotFoundError, ConflictError, sqlite3.IntegrityError) as exc:
+        raise _session_errors(exc) from exc
+
+
+@router.post("/practice-sessions/{session_id}/attempts")
+def create_session_attempt(session_id: str, payload: SessionAttemptCreate) -> dict:
+    try:
+        return record_session_attempt(session_id, payload)
+    except (NotFoundError, ConflictError, sqlite3.IntegrityError) as exc:
+        raise _session_errors(exc) from exc
+
+
+@router.post("/practice-sessions/{session_id}/abandon")
+def abandon_practice_session(session_id: str) -> dict:
+    try:
+        return abandon_session(session_id)
+    except (NotFoundError, ConflictError, sqlite3.IntegrityError) as exc:
+        raise _session_errors(exc) from exc
 
 
 @router.put("/queue")

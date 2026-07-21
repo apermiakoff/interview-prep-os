@@ -51,13 +51,20 @@ Then open `http://127.0.0.1:9876`.
 
 ## Deploy/update
 
+Use the verified deploy command. It refuses to build or recreate the service until
+SQLite `quick_check` passes for both the live database and a new pre-migration
+backup. Startup migrations are forward-only.
+
 ```bash
 cd /home/hermes/interview-prep-os
 git pull --ff-only
-docker compose build
-docker compose up -d --force-recreate
-curl --fail http://127.0.0.1:8765/api/health
+.venv/bin/python scripts/deploy.py
 ```
+
+The command prints `VERIFIED_PRE_MIGRATION_BACKUP=...`, builds the image,
+recreates the service, and requires a healthy response from
+`http://127.0.0.1:8765/api/health`. Do not replace this sequence with a bare
+`docker compose up`: that would remove the backup-before-migration gate.
 
 ## Status and logs
 
@@ -82,7 +89,11 @@ To restore:
 2. Copy the desired backup to `data/interview-prep.db`.
 3. Start the app and verify `/api/health` and `/api/bootstrap`.
 
-SQLite WAL mode and the SQLite backup API are used so backups remain consistent while the service is running.
+If a new image has applied migrations 5 or later, **never start an older image
+against that migrated database**. Stop the service, restore the verified
+pre-migration backup printed by `scripts/deploy.py`, then start the older image.
+
+SQLite WAL mode and the SQLite backup API are used so backups remain consistent while the service is running. Every manual and deploy-time backup runs `PRAGMA quick_check` against the source and copied database before it is accepted.
 
 ## Legacy coach bridge
 

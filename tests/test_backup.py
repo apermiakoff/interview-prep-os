@@ -1,3 +1,7 @@
+import sqlite3
+
+import pytest
+
 from app.backup import backup
 from app.db import MIGRATIONS, connect, init_db
 
@@ -10,3 +14,10 @@ def test_sqlite_backup_is_readable(tmp_path):
     with connect(target) as connection:
         count = connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0]
         assert count == len(MIGRATIONS)
+
+
+def test_backup_refuses_a_corrupt_source(tmp_path):
+    source = tmp_path / "corrupt.db"
+    source.write_bytes(b"not a sqlite database")
+    with pytest.raises(sqlite3.DatabaseError):
+        backup(source, tmp_path / "backups")

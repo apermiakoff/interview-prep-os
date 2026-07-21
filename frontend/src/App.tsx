@@ -34,7 +34,7 @@ function currentRoute() {
 function routeLabel(route: string) {
   if (route.startsWith("problem/")) return "Problem";
   if (route.startsWith("library")) return "Library";
-  if (route === "solve") return "Solve Room";
+  if (route.startsWith("solve")) return "Solve Room";
   if (route === "profile") return "Profile";
   return navigation.find(([name]) => name === route)?.[1] || "Today";
 }
@@ -62,7 +62,11 @@ export function App() {
   }, [theme]);
   useEffect(() => {
     document.title = `${routeLabel(route)} · Interview Prep OS`;
-    document.getElementById("main-content")?.focus({ preventScroll: true });
+    const main = document.getElementById("main-content");
+    if (main) {
+      main.tabIndex = -1;
+      main.focus({ preventScroll: true });
+    }
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [route]);
 
@@ -70,12 +74,19 @@ export function App() {
     window.location.hash = next;
     setRoute(legacyRoutes[next] || next);
   };
+  // Swap the current history entry: the bare #solve compatibility route resolves
+  // to a concrete session without trapping the back button in a redirect loop.
+  const replaceRoute = (next: string) => {
+    window.history.replaceState(null, "", `#${next}`);
+    setRoute(next);
+  };
 
   if (error) return <div className="boot-state"><span className="brand-mark">IP</span><h1>Could not open the cockpit.</h1><p>{error}</p><button className="button primary" onClick={() => window.location.reload()}>Retry</button></div>;
   if (!data) return <div className="boot-state"><span className="brand-mark pulse">IP</span><h1>Preparing today’s retrieval…</h1></div>;
 
   const activeNav = route.startsWith("problem/") ? "library" : route.startsWith("library") ? "library" : route;
   const problemId = route.startsWith("problem/") ? Number(route.split("/")[1]) : null;
+  const sessionId = route.startsWith("solve/") ? route.slice("solve/".length) : null;
   const librarySub = route === "library/queue" ? "queue" : route === "library/reviews" ? "reviews" : "all";
   const dueCount = (data.workload.status_counts.overdue || 0) + (data.workload.status_counts.due || 0);
 
@@ -88,12 +99,12 @@ export function App() {
       </header>
 
       {route === "today" && <TodayView data={data} navigate={navigate} />}
-      {route === "solve" && <SolveView data={data} onData={setData} navigate={navigate} />}
+      {(route === "solve" || sessionId) && <SolveView key={sessionId || "scheduled"} sessionId={sessionId} data={data} onData={setData} navigate={navigate} replaceRoute={replaceRoute} />}
       {route === "brain" && <BrainView data={data} navigate={navigate} />}
       {route === "roadmap" && <RoadmapView navigate={navigate} />}
       {route.startsWith("library") && <LibraryView data={data} navigate={navigate} sub={librarySub} />}
       {route === "profile" && <ProfileView data={data} />}
-      {problemId != null && Number.isFinite(problemId) && <ProblemDetailView problemId={problemId} navigate={navigate} />}
+      {problemId != null && Number.isFinite(problemId) && <ProblemDetailView problemId={problemId} data={data} navigate={navigate} />}
 
       <footer><span>Private training system · append-only evidence</span><span>{data.workload.total} queued problems · generated {new Date(data.generated_at).toLocaleString("en", { timeZone: data.timezone, timeZoneName: "short" })}</span></footer>
     </div>

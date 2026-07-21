@@ -103,6 +103,42 @@ def test_migrations_are_idempotent(tmp_path):
     assert versions[-1] == LATEST_VERSION
 
 
+def test_session_migration_adds_tables_and_leaves_evidence_untouched(tmp_path):
+    path = tmp_path / "legacy.db"
+    _make_legacy_db(path)
+    init_db(path)
+    with connect(path) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+        assert {"practice_sessions", "session_hint_events"} <= tables
+        # Historical evidence survives and predates sessions: session_id is NULL.
+        attempt = connection.execute(
+            "SELECT session_id, result FROM attempt_events WHERE id='legacy-attempt-1'"
+        ).fetchone()
+        assert attempt["result"] == "red" and attempt["session_id"] is None
+        # Origin/assignment consistency is enforced by the schema itself.
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                """
+                INSERT INTO practice_sessions(
+                  id, problem_id, origin, status, started_at, updated_at
+                ) VALUES('bad-session', 1, 'scheduled', 'active',
+                         datetime('now'), datetime('now'))
+                """
+            )
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                """
+                INSERT INTO practice_sessions(
+                  id, problem_id, assignment_id, origin, status, started_at, updated_at
+                ) VALUES('bad-session-2', 1, 'missing-assignment', 'ad_hoc', 'active',
+                         datetime('now'), datetime('now'))
+                """
+            )
+
+
 def test_forward_only_guard_refuses_newer_database(tmp_path):
     path = tmp_path / "future.db"
     init_db(path)

@@ -19,6 +19,11 @@ def test_bootstrap_and_hint_reveal(db_path):
         response = client.get("/api/bootstrap")
         assert response.status_code == 200
         assert response.json()["active_assignment"]["title"] == "Critical Connections in a Network"
+        skipped = client.post("/api/hints", json={"assignment_id": "assignment-1", "level": "H2"})
+        assert skipped.status_code == 409
+        assert "Invariant two" not in skipped.text
+        first = client.post("/api/hints", json={"assignment_id": "assignment-1", "level": "H1"})
+        assert first.status_code == 200
         hint = client.post("/api/hints", json={"assignment_id": "assignment-1", "level": "H2"})
         assert hint.status_code == 200
         assert hint.json()["text"] == "Invariant two"
@@ -26,7 +31,7 @@ def test_bootstrap_and_hint_reveal(db_path):
         assert response.headers["cache-control"] == "no-store"
     with connect(db_path) as connection:
         assert connection.execute("SELECT highest_hint FROM assignments").fetchone()[0] == "H2"
-        assert connection.execute("SELECT COUNT(*) FROM hint_events").fetchone()[0] == 1
+        assert connection.execute("SELECT COUNT(*) FROM hint_events").fetchone()[0] == 2
 
 
 def test_copied_accepted_stays_non_independent_and_is_idempotent(db_path):

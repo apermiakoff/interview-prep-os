@@ -95,10 +95,30 @@ GRAPH = {
     "edges": [[0, 1], [1, 2], [2, 0], [1, 3], [3, 4]],
 }
 
+# Hand-authored hint ladder for the low-link pattern (originally written for the
+# Critical Connections assignment). Curated content; never mixed with generated.
+LOW_LINK_HINTS = {
+    "H1": "Can one DFS summarize whether a child's subtree has any alternative route "
+    "back to the already visited part of the graph?",
+    "H2": "Track discovery time and the earliest discovery time reachable from each "
+    "DFS subtree without using its parent edge.",
+    "H3": "Use Tarjan-style low-link DFS. Compare the child's low value with the "
+    "parent's discovery time.",
+    "H4": "Set tin[u] and low[u] on entry. For a visited non-parent neighbor v, "
+    "minimize low[u] with tin[v]. After an unvisited child v returns, minimize "
+    "low[u] with low[v]. Edge (u,v) is a bridge exactly when low[v] > tin[u].",
+}
+
 
 def lesson_for(pattern_id: str | None) -> dict | None:
     if pattern_id == LOW_LINK_PATTERN["id"]:
         return {"pattern": LOW_LINK_PATTERN, "graph": GRAPH, "trace": LOW_LINK_TRACE}
+    return None
+
+
+def curated_hints_for(pattern_id: str | None) -> dict[str, str] | None:
+    if pattern_id == LOW_LINK_PATTERN["id"]:
+        return dict(LOW_LINK_HINTS)
     return None
 
 

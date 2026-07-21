@@ -18,8 +18,8 @@ export interface Assignment {
   status: string;
   timebox_minutes: number;
   goal: string;
-  hints: Record<string, string>;
-  bujo: Record<string, string>;
+  /** Levels that exist for this assignment — bodies stay server-side until revealed. */
+  hint_levels: string[];
   highest_hint?: string;
   notes: string;
 }
@@ -187,6 +187,99 @@ export interface RelatedProblem {
   attempt_count: number;
 }
 
+export interface ContentResolution {
+  availability: "available" | "unavailable";
+  provenance: "curated" | "generated" | "unavailable";
+  scope: "pattern" | "skill" | "problem" | null;
+  generator: string | null;
+  label: string;
+}
+
+export interface ProblemContent {
+  problem_id: number;
+  lesson: ContentResolution;
+  hints: ContentResolution;
+}
+
+export interface ScaffoldStage {
+  id: string;
+  title: string;
+  intent: string;
+  prompts: string[];
+}
+
+export interface LessonDocument extends ContentResolution {
+  problem_id: number;
+  problem_title: string;
+  lesson: Lesson | null;
+  scaffold: { stages: ScaffoldStage[] } | null;
+}
+
+export interface PracticeSession {
+  id: string;
+  problem_id: number;
+  assignment_id: string | null;
+  origin: "scheduled" | "ad_hoc";
+  status: "active" | "completed" | "abandoned";
+  mode: string;
+  goal: string;
+  timebox_minutes: number;
+  highest_hint: string | null;
+  request_id?: string | null;
+  started_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+}
+
+export interface SessionHintLevel {
+  level: string;
+  state: "revealed" | "next" | "locked";
+  available: boolean;
+  body?: string;
+}
+
+export interface SessionProblem {
+  id: number;
+  leetcode_id?: number | null;
+  slug: string;
+  title: string;
+  url?: string | null;
+  difficulty?: string | null;
+  pattern_id?: string | null;
+  pattern_title?: string | null;
+}
+
+export interface SessionEnvelope {
+  session: PracticeSession;
+  problem: SessionProblem | null;
+  scheduled: { id: string; assigned_on: string; status: string; mode: string } | null;
+  hints: ContentResolution & { levels: SessionHintLevel[] };
+  lesson: ContentResolution;
+  created?: boolean;
+}
+
+export interface SessionAttemptFacts {
+  event_id: string;
+  result: Result;
+  accepted: boolean;
+  independent: boolean;
+  duplicate: boolean;
+  next_due: string | null;
+}
+
+export interface SessionAttemptResponse {
+  session: SessionEnvelope;
+  bootstrap: Bootstrap;
+  attempt: SessionAttemptFacts | null;
+}
+
+export interface HintRevealResponse {
+  level: string;
+  body: string;
+  highest_hint: string;
+  revealed: string[];
+}
+
 export interface ProblemDetail {
   problem: ProblemSummary & {
     pattern_description?: string;
@@ -196,8 +289,10 @@ export interface ProblemDetail {
   reviews: Review[];
   memory: Omit<MemoryState, "title" | "curve"> | null;
   active_assignment: Assignment | null;
-  lesson: Lesson | null;
-  lesson_availability: { status: "authored" | "none"; label: string };
+  content: ProblemContent;
+  can_start_ad_hoc: boolean;
+  scheduled_assignment: { id: string; assigned_on: string; status: string } | null;
+  open_practice_session: { id: string; origin: string; started_at: string } | null;
   skills: ProblemSkill[];
   prerequisites: Array<{ skill_id: string; title: string; weight: number; states: Record<string, SkillStateCell> }>;
   related_problems: RelatedProblem[];
@@ -338,7 +433,6 @@ export interface Bootstrap {
   memory: MemoryState[];
   patterns: PatternSummary[];
   profile: Record<string, any> | null;
-  lesson: Lesson | null;
   workload: {
     total: number;
     status_counts: Record<string, number>;

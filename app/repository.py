@@ -7,8 +7,8 @@ from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from app.content import resolve_problem_content
 from app.db import backfill_attempt_errors, backfill_pattern_skills
-from app.lessons import lesson_for
 from app.roadmap import PATTERN_CATALOG
 from app.scheduler import retrievability
 
@@ -118,8 +118,12 @@ def active_assignment(connection: sqlite3.Connection) -> dict | None:
     if row is None:
         return None
     item = dict(row)
-    item["hints"] = _json(item.pop("hints_json"), {})
-    item["bujo"] = _json(item.pop("bujo_json"), {})
+    # Hint bodies and authored bujo answers never ship before they are earned:
+    # bootstrap exposes only which hint levels exist. Bodies come one at a time
+    # through the session hint-reveal endpoint.
+    hints = _json(item.pop("hints_json"), {})
+    item["hint_levels"] = [level for level in ("H1", "H2", "H3", "H4") if hints.get(level)]
+    item.pop("bujo_json", None)
     item["recognition_signals"] = _json(item.get("recognition_signals"), [])
     item["notes"] = item.get("notes") or ""
     return item
@@ -268,8 +272,15 @@ def problem_catalog(
     params: dict[str, Any] = {"today": datetime.now(MOSCOW).date().isoformat()}
     base_filters: list[str] = []
     if search.strip():
-        params["search"] = f"%{search.strip().lower()}%"
-        base_filters.append("(LOWER(title) LIKE :search OR LOWER(slug) LIKE :search)")
+        term = search.strip().lower()
+        params["search"] = f"%{term}%"
+        clauses = ["LOWER(title) LIKE :search", "LOWER(slug) LIKE :search"]
+        number = term.removeprefix("#")
+        if number.isdigit():
+            # "1192" or "#1192" also matches the LeetCode number by prefix.
+            params["search_number"] = f"{number}%"
+            clauses.append("CAST(leetcode_id AS TEXT) LIKE :search_number")
+        base_filters.append("(" + " OR ".join(clauses) + ")")
     if pattern:
         params["pattern"] = pattern
         base_filters.append("pattern_id = :pattern")
@@ -388,7 +399,22 @@ def problem_detail(connection: sqlite3.Connection, problem_id: int) -> dict | No
         "SELECT * FROM memory_states WHERE problem_id = ?", (problem_id,)
     ).fetchone()
     assignment = active_assignment(connection)
-    lesson = lesson_for(item.get("pattern_id"))
+    scheduled_here = connection.execute(
+        """
+        SELECT id, assigned_on, status FROM assignments
+        WHERE problem_id = ? AND status IN ('active', 'carryover')
+        ORDER BY assigned_on ASC, created_at ASC LIMIT 1
+        """,
+        (problem_id,),
+    ).fetchone()
+    open_practice = connection.execute(
+        """
+        SELECT id, origin, started_at FROM practice_sessions
+        WHERE problem_id = ? AND status = 'active'
+        ORDER BY started_at DESC LIMIT 1
+        """,
+        (problem_id,),
+    ).fetchone()
     return {
         "problem": item,
         "attempts": [dict(event) for event in event_rows],
@@ -397,13 +423,12 @@ def problem_detail(connection: sqlite3.Connection, problem_id: int) -> dict | No
         "active_assignment": assignment
         if assignment and assignment["problem_id"] == problem_id
         else None,
-        "lesson": lesson,
-        "lesson_availability": {
-            "status": "authored" if lesson else "none",
-            "label": "Authored visual lesson"
-            if lesson
-            else "No authored lesson yet — nothing is auto-generated",
-        },
+        # Availability and provenance only — lesson and hint bodies stay behind
+        # their dedicated endpoints.
+        "content": resolve_problem_content(connection, problem_id),
+        "can_start_ad_hoc": True,
+        "scheduled_assignment": dict(scheduled_here) if scheduled_here else None,
+        "open_practice_session": dict(open_practice) if open_practice else None,
         "skills": _problem_skills_payload(connection, problem_id),
         "prerequisites": _problem_prerequisites(connection, problem_id),
         "related_problems": _related_problems(connection, problem_id),
@@ -520,7 +545,6 @@ def bootstrap(connection: sqlite3.Connection) -> dict:
         "memory": memory_states(connection),
         "patterns": pattern_summaries(connection),
         "profile": profile(connection),
-        "lesson": lesson_for(active.get("pattern_id")) if active else None,
         "workload": {
             "total": queue_snapshot["total"],
             "status_counts": queue_snapshot["status_counts"],

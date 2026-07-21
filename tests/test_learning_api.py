@@ -115,10 +115,10 @@ def test_problem_detail_exposes_workspace_fields(db_path):
         listing = client.get("/api/problems", params={"search": "coin change"}).json()
         problem_id = listing["items"][0]["id"]
         detail = client.get(f"/api/problems/{problem_id}").json()
-    assert {"skills", "prerequisites", "related_problems", "placements", "lesson_availability"} <= (
-        set(detail)
-    )
-    assert detail["lesson_availability"]["status"] in {"authored", "none"}
+    assert {"skills", "prerequisites", "related_problems", "placements", "content"} <= set(detail)
+    assert detail["can_start_ad_hoc"] is True
+    assert detail["content"]["lesson"]["provenance"] in {"curated", "generated"}
+    assert detail["content"]["hints"]["availability"] == "available"
     roles = {skill["role"] for skill in detail["skills"]}
     assert "core" in roles
     assert {p["curriculum_id"] for p in detail["placements"]} == {"outtalent"}
