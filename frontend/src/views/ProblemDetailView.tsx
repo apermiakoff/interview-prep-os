@@ -119,6 +119,7 @@ export function ProblemDetailView({ problemId, data, navigate }: { problemId: nu
         </nav>
         {!aiLocked && <nav className="detail-tabs tool-tabs" aria-label="Problem tools">
           <span>Tools</span>
+          <button className="tool-return" onClick={() => setTab("overview")}>Problem</button>
           <button className={tab === "generated" ? "active" : ""} onClick={() => setTab("generated")}>Generated lesson</button>
           <button className={tab === "coach" ? "active" : ""} onClick={() => setTab("coach")}>Coach</button>
           <button className={tab === "visualization" ? "active" : ""} onClick={() => setTab("visualization")}>Visualization</button>

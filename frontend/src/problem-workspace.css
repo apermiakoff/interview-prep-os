@@ -90,6 +90,7 @@
 .problem-workspace-nav .detail-tabs { min-width: 0; border-bottom: 0; }
 .problem-workspace-nav .detail-tabs button { min-height: 40px; padding: 8px 13px; white-space: nowrap; }
 .problem-workspace-nav .tool-tabs { justify-content: flex-end; }
+.problem-workspace-nav .tool-return { display: none; }
 .problem-workspace-nav .tool-tabs > span {
   display: flex;
   align-items: center;
@@ -134,6 +135,37 @@
 .artifact-generation .artifact-controls { margin: 0; padding: 10px; border-top: 1px solid var(--color-border, var(--rule)); }
 .artifact-generation .artifact-meta { margin: 0; padding: 0 10px 10px; overflow-wrap: anywhere; }
 .workspace-artifact-panel.has-artifact > .semantic-viz { margin-top: 8px; }
+
+/* Generated tools are focused work surfaces on every viewport. Collapse the
+   dossier into a compact identity strip and make the canvas the workspace. */
+.problem-detail.focused-tool .problem-workspace-header { padding-bottom: 5px; }
+.problem-detail.focused-tool .problem-workspace-titlebar {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "back title";
+  gap: 10px;
+}
+.problem-detail.focused-tool .problem-workspace-titlebar .back-link { margin: 0; }
+.problem-detail.focused-tool .problem-workspace-titlebar h1 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.problem-detail.focused-tool .problem-kicker,
+.problem-detail.focused-tool .placement-chips,
+.problem-detail.focused-tool .problem-workspace-actions,
+.problem-detail.focused-tool .problem-inspector,
+.problem-detail.focused-tool .extra-practice-note,
+.problem-detail.focused-tool .form-message,
+.problem-detail.focused-tool .mode-tabs { display: none; }
+.problem-detail.focused-tool .problem-workspace-nav .tool-tabs {
+  width: 100%;
+  border-top: 0;
+  justify-content: flex-start;
+}
+.problem-detail.focused-tool .problem-workspace-nav .tool-return { display: block; }
 
 @media (max-width: 900px) {
   .problem-workspace-titlebar {
