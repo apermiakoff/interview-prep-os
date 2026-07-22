@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { AlgorithmVisualizer } from "../components/AlgorithmVisualizer";
 import type { Bootstrap, LessonDocument, ProblemDetail, SkillStateCell } from "../types";
+import { CoachPanel } from "../components/CoachPanel";
+import { AIArtifactPanel } from "../components/AIArtifactPanel";
 
 const CORE_DIMENSIONS = ["recognition", "derivation", "implementation"] as const;
 
@@ -19,7 +21,7 @@ function scheduledDate(value: string) {
 
 export function ProblemDetailView({ problemId, data, navigate }: { problemId: number; data: Bootstrap; navigate: (route: string) => void }) {
   const [detail, setDetail] = useState<ProblemDetail | null>(null);
-  const [tab, setTab] = useState<"overview" | "attempts" | "reviews" | "lesson">("overview");
+  const [tab, setTab] = useState<"overview" | "attempts" | "reviews" | "lesson" | "coach" | "generated" | "visualization">("overview");
   const [error, setError] = useState("");
   const [launching, setLaunching] = useState(false);
   const [launchError, setLaunchError] = useState("");
@@ -53,6 +55,7 @@ export function ProblemDetailView({ problemId, data, navigate }: { problemId: nu
   if (!detail) return <main className="view page-shell" id="main-content"><div className="collection-loading">Loading problem workspace…</div></main>;
 
   const { problem, attempts, reviews, memory, content, scheduled_assignment, open_practice_session, skills, prerequisites, related_problems, placements } = detail;
+  const aiLocked = Boolean(open_practice_session);
   const otherScheduled = data.active_assignment && data.active_assignment.problem_id !== problemId ? data.active_assignment : null;
 
   const startPaperAttempt = async () => {
@@ -120,8 +123,13 @@ export function ProblemDetailView({ problemId, data, navigate }: { problemId: nu
       </header>
 
       <nav className="detail-tabs" aria-label="Problem sections">
-        {(["overview", "attempts", "reviews", "lesson"] as const).map(value => <button key={value} className={tab === value ? "active" : ""} onClick={() => setTab(value)}>{value === "lesson" ? `Lesson · ${content.lesson.provenance}` : value}</button>)}
+        {(["overview", "attempts", "reviews", "lesson", ...(!aiLocked ? ["coach", "generated", "visualization"] as const : [])] as const).map(value => <button key={value} className={tab === value ? "active" : ""} onClick={() => setTab(value)}>{value === "lesson" ? `Lesson · ${content.lesson.provenance}` : value === "generated" ? "Generated lesson" : value}</button>)}
       </nav>
+
+      {open_practice_session && <section className="ai-session-lock" aria-label="Problem AI locked during active session">
+        <div><span className="eyebrow">Session-scoped assistance required</span><h2>Problem AI is locked while this attempt is open.</h2><p>Use the session-scoped Coach so assistance is accounted for and the hidden-hint policy applies. Problem Coach, generated lessons, and generated visualizations are unavailable until the attempt closes.</p></div>
+        <button className="button primary" onClick={() => navigate(`solve/${open_practice_session.id}`)}>Use session Coach →</button>
+      </section>}
 
       {tab === "overview" && <>
         <section className="detail-overview">
@@ -211,6 +219,9 @@ export function ProblemDetailView({ problemId, data, navigate }: { problemId: nu
           )}
         </section>
       )}
+      {!aiLocked && tab === "coach" && <CoachPanel scope={{ scope: "problem", id: problemId }} />}
+      {!aiLocked && tab === "generated" && <AIArtifactPanel problemId={problemId} kind="lesson" />}
+      {!aiLocked && tab === "visualization" && <AIArtifactPanel problemId={problemId} kind="visualization" />}
     </main>
   );
 }

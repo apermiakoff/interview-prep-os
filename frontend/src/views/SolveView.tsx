@@ -3,6 +3,8 @@ import { api } from "../api";
 import { CompactTimer, clearTimer, readTimerElapsedMinutes } from "../components/CompactTimer";
 import { FinishSheet, type FinishFacts } from "../components/FinishSheet";
 import type { Bootstrap, SessionEnvelope, SessionHintLevel } from "../types";
+import { CoachPanel } from "../components/CoachPanel";
+import { ModalSurface } from "../components/ModalSurface";
 
 /*
  * Paper-first solve room. The screen is a command cockpit, not an editor:
@@ -40,11 +42,23 @@ export function SolveView({ sessionId, data, onData, navigate, replaceRoute }: P
   const [confirmingFirstHint, setConfirmingFirstHint] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
+  const [coachOpen, setCoachOpen] = useState(false);
+  const [aiAssisted, setAiAssisted] = useState(false);
+  const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 700px)").matches);
   const [finishError, setFinishError] = useState("");
   const [finishElapsed, setFinishElapsed] = useState(0);
   const [elapsedCapped, setElapsedCapped] = useState(false);
   const attemptRef = useRef<{ signature: string; eventId: string } | null>(null);
   const finishButtonRef = useRef<HTMLButtonElement>(null);
+  const coachButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 700px)");
+    const update = () => setMobile(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
 
   // Bare #solve keeps working: it creates/continues the scheduled session.
   useEffect(() => {
@@ -61,7 +75,7 @@ export function SolveView({ sessionId, data, onData, navigate, replaceRoute }: P
     setEnvelope(null);
     setError("");
     api.practiceSession(sessionId)
-      .then(setEnvelope)
+      .then(result => { setEnvelope(result); setAiAssisted(Boolean(result.session.ai_assisted)); })
       .catch(reason => setError(reason instanceof Error ? reason.message : "Could not load the session."));
   }, [sessionId]);
 
@@ -225,6 +239,7 @@ export function SolveView({ sessionId, data, onData, navigate, replaceRoute }: P
           </div>
         </div>
         <div className="session-bar-commands">
+          <button ref={coachButtonRef} className="button coach-trigger" aria-expanded={coachOpen} onClick={() => setCoachOpen(true)}>Coach</button>
           <a className="button leetcode-cta" href={problem.url || `https://leetcode.com/problems/${problem.slug}/`} target="_blank" rel="noreferrer">Open on LeetCode ↗</a>
           <CompactTimer sessionId={session.id} timeboxMinutes={session.timebox_minutes} />
           <button ref={finishButtonRef} className="button primary finish-cta" disabled={busy} onClick={openFinish}>Finish attempt</button>
@@ -321,10 +336,13 @@ export function SolveView({ sessionId, data, onData, navigate, replaceRoute }: P
         </div>
       </div>
 
+      {coachOpen && <ModalSurface className="coach-overlay" label="Session AI coach" modal={mobile} onClose={() => { setCoachOpen(false); window.requestAnimationFrame(() => coachButtonRef.current?.focus()); }}><CoachPanel scope={{ scope: "session", id: session.id }} onAccepted={() => { setAiAssisted(true); setEnvelope(current => current ? { ...current, session: { ...current.session, ai_assisted: true } } : current); }} onClose={() => { setCoachOpen(false); window.requestAnimationFrame(() => coachButtonRef.current?.focus()); }} /></ModalSurface>}
+
       {finishOpen && (
         <FinishSheet
           origin={session.origin}
           hintsUsed={hintsUsed}
+          aiAssisted={aiAssisted}
           highestHint={session.highest_hint}
           elapsedMinutes={finishElapsed}
           elapsedCapped={elapsedCapped}

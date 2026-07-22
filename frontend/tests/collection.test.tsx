@@ -61,7 +61,7 @@ test("large collections render a bounded server page and send filters", async ()
 test("every rendered row carries a Practice action and an external link", async () => {
   const problems = mockProblems();
   const start = vi.spyOn(api, "startProblemSession").mockResolvedValue({
-    session: { id: "ps-test-1", problem_id: 1, assignment_id: null, origin: "ad_hoc", status: "active", mode: "paper practice", goal: "", timebox_minutes: 35, highest_hint: null, started_at: "", updated_at: "" },
+    session: { id: "ps-test-1", problem_id: 1, assignment_id: null, origin: "ad_hoc", status: "active", mode: "paper practice", goal: "", timebox_minutes: 35, highest_hint: null, ai_assisted: false, started_at: "", updated_at: "" },
     problem: null,
     scheduled: null,
     hints: { availability: "available", provenance: "generated", scope: "skill", generator: "deterministic-skill-scaffold/1.0", label: "Generated hint ladder", levels: [] },

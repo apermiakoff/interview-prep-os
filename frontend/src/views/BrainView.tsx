@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { Bootstrap, LearningProfile } from "../types";
+import { DiagnosisPanel } from "../components/DiagnosisPanel";
 
 export function BrainView({ data, navigate }: { data: Bootstrap; navigate: (route: string) => void }) {
   const [profile, setProfile] = useState<LearningProfile | null>(null);
@@ -76,6 +77,8 @@ export function BrainView({ data, navigate }: { data: Bootstrap; navigate: (rout
           </section>
         </>
       )}
+
+      <DiagnosisPanel />
 
       <section className="evidence-ledger">
         <article className="evidence-summary">

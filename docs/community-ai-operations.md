@@ -64,3 +64,9 @@ constructed until resolution passes. The original hostname remains the HTTP Host
 certificate verification keeps its intended identity. Operators should still restrict egress at the
 container/host firewall and keep `ALLOW_PRIVATE_BASE_URL=false` for hosted providers. Ollama
 intentionally permits private addresses.
+
+## Frontend checks
+
+The UI discovers capability through `GET /api/ai/status`. A disabled response is a normal application state and links to `#settings/ai`; it must not break non-AI learning flows. A ready response enables scoped conversations, artifact controls, diagnosis history, and usage reporting. HTTP 402 (budget), 409 (active generation), and 503 (disabled/misconfigured) have distinct user guidance.
+
+After changing AI configuration, restart with `docker compose --profile ai up -d`. Verify Settings exposes only provider/model/base host, credential-configured boolean, limits, usage, and reservations. Never expose an API key, secret file contents, snapshots, or prompt internals in frontend payloads or logs.

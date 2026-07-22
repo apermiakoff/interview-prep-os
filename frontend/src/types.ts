@@ -225,6 +225,7 @@ export interface PracticeSession {
   goal: string;
   timebox_minutes: number;
   highest_hint: string | null;
+  ai_assisted: boolean;
   request_id?: string | null;
   started_at: string;
   updated_at: string;
@@ -447,3 +448,28 @@ export interface Bootstrap {
     confidence: string;
   };
 }
+
+export interface AIStatus {
+  status: "ready" | "disabled";
+  enabled: boolean;
+  provider: "ollama" | "openai" | "anthropic" | "openai_compatible" | string;
+  model: string;
+  base_url?: string;
+  base_host?: string;
+  monthly_token_budget?: number;
+  max_output_tokens?: number;
+  [key: string]: string | number | boolean | undefined;
+}
+export interface AIUsage { tokens_used: number; tokens_reserved: number; token_budget: number; tokens_remaining: number }
+export interface AIMessage { id: string; role: "user" | "assistant" | "system"; content: string; run_id?: string | null; created_at: string }
+export interface Conversation { id: string; scope: "problem" | "session"; scope_id: string; title: string; created_at: string; updated_at: string; messages?: AIMessage[] }
+export type AIRunStatus = "queued" | "running" | "generating" | "completed" | "failed" | "cancelled";
+export interface AIRun { id: string; conversation_id?: string | null; kind: "chat" | "lesson" | "visualization" | "diagnosis"; scope: "problem" | "session" | "learning"; scope_id: string; status: AIRunStatus; attempts: number; max_attempts: number; error_code?: string | null; error_message?: string | null; created_at: string; updated_at: string; completed_at?: string | null; artifact?: AIArtifact }
+export interface SSEEvent { id: string; event: string; data: Record<string, unknown> }
+export interface ArtifactEnvelope<T> { id: string; scope: string; scope_id: string; kind: string; version: number; schema_version: string; content: T; run_id: string; context_snapshot_id: string; prompt_version: string; provider: string; model: string; created_at: string }
+export interface LessonArtifact { schema_version: "lesson@1"; objectives: string[]; recognition_signals: string[]; sections: Array<{ heading: string; body: string }>; complexity: { time: string; space: string }; failures: string[]; provenance_notes: string[] }
+export interface VisualEntity { id: string; label: string; kind: "node" | "edge" | "cell" | "item" | "frame" | "pointer"; data: Record<string, string | number | boolean | null> }
+export interface VisualEvent { op: "show" | "hide" | "visit" | "compare" | "update" | "push" | "pop" | "move" | "select"; targets: string[]; value?: string | number | boolean | null; note: string }
+export interface VisualizationArtifact { schema_version: "visualization@1"; renderer: string; title: string; entities: VisualEntity[]; events: VisualEvent[] }
+export interface DiagnosisArtifact { schema_version: "diagnosis@1"; observations: string[]; hypotheses: Array<{ type: "stuck_point" | "brain_trap" | "learning_bottleneck"; status: "candidate" | "likely" | "insufficient"; statement: string; confidence: number; evidence: Array<{ id: string; quote: string }> }>; interventions: Array<{ action: string; rationale: string; requires_user_action: true }> }
+export type AIArtifact = ArtifactEnvelope<LessonArtifact | VisualizationArtifact | DiagnosisArtifact>;

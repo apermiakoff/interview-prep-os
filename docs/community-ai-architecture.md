@@ -68,3 +68,13 @@ checks, while accepted queued/running runs atomically reserve the full rendered-
 bound, fixed protocol overhead, and maximum output against the monthly local admission ceiling. Full
 reported actual usage replaces the reservation at completion even when it exceeds the request cap;
 that ceiling is intentionally not represented as an external provider billing guarantee.
+
+## Embedded frontend flow
+
+The React client treats AI as an optional, scoped learning instrument. `CoachPanel` opens a problem- or session-owned conversation, persists one scope-specific pending `{content, idempotency key, run id}` record, follows an already-accepted run before considering any repost, and clears recovery state only after terminal completion and a successful persisted-message refresh. Retry reuses the same key; Resume and Discard are explicit. It never invents token streaming. The API module also provides a reconnectable fetch-based SSE reader with `Last-Event-ID`; durable run polling is the compatibility fallback.
+
+Session coach use is explicitly labelled assisted/non-independent. The solve room updates its local assistance fact immediately after a message POST is accepted, independently of later polling, while the backend remains canonical. While a problem has an open practice session, problem-scoped Coach and generated lesson/visualization controls are locked and the workspace links to that exact solve session. Canonical hints remain behind the existing reveal API and are never inserted into a coach thread. Generated lessons and visualizations are versioned artifacts shown separately from curated content with provider, model, prompt, and time provenance. Visualization rendering accepts semantic entities/events only; model HTML and JavaScript are never rendered. Brain diagnosis keeps observations, uncertain hypotheses, evidence references, and user-action interventions visibly separate and has no mastery mutation path.
+
+On narrow screens the solve Coach is a portal-backed modal: the application background is inert, body scroll is locked, focus enters and remains in the dialog, Escape closes it, and trigger focus is restored. At desktop width the same fixed Coach is a non-modal complementary dock and does not inert the application.
+
+AI Setup is a secondary Settings route. It reads masked status and usage only. Provider credentials remain Docker/server configuration and there is intentionally no credential form or browser secret storage.

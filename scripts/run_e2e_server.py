@@ -24,7 +24,11 @@ TARGET = ROOT / "data" / "e2e" / "interview-prep-e2e.db"
 
 
 def prepare_database() -> None:
-    source = Path(os.getenv("INTERVIEW_PREP_E2E_SOURCE", ROOT / "data" / "interview-prep.db"))
+    default_source = ROOT / "data" / "interview-prep.db"
+    canonical_source = ROOT.parents[1] / "interview-prep-os" / "data" / "interview-prep.db"
+    if not default_source.exists() and canonical_source.exists():
+        default_source = canonical_source
+    source = Path(os.getenv("INTERVIEW_PREP_E2E_SOURCE", default_source))
     TARGET.parent.mkdir(parents=True, exist_ok=True)
     for suffix in ("", "-wal", "-shm"):
         stale = TARGET.parent / (TARGET.name + suffix)
@@ -73,6 +77,11 @@ def ensure_active_assignment(connection: sqlite3.Connection) -> None:
 def main() -> None:
     prepare_database()
     os.environ.setdefault("INTERVIEW_PREP_STATIC", str(ROOT / "frontend" / "dist"))
+    ai_target = Path(f"/tmp/interview-prep-e2e-ai-{PORT}-{os.getpid()}.db")
+    if ai_target.exists():
+        ai_target.unlink()
+    os.environ["INTERVIEW_PREP_AI_DB"] = str(ai_target)
+    os.environ["INTERVIEW_PREP_AI_ENABLED"] = "false"
     for var in (
         "INTERVIEW_PREP_LEGACY_STATE",
         "INTERVIEW_PREP_LEGACY_EVENTS",

@@ -10,16 +10,21 @@ import type {
   Result,
   SessionAttemptResponse,
   SessionEnvelope,
+  AIArtifact, AIStatus, AIUsage, Conversation, AIRun,
 } from "./types";
 
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
+export class ApiError extends Error {
+  constructor(message: string, public status: number) { super(message); this.name = "ApiError"; }
+}
+
+export async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
     headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(payload.detail || "Request failed");
+    throw new ApiError(payload.detail || "Request failed", response.status);
   }
   return response.json() as Promise<T>;
 }
@@ -99,4 +104,43 @@ export const api = {
     }),
   problemLesson: (problemId: number) =>
     request<LessonDocument>(`/api/problems/${problemId}/lesson`),
+  aiStatus: () => request<AIStatus>("/api/ai/status"),
+  aiUsage: () => request<AIUsage>("/api/ai/usage"),
+  aiConversations: (scope: "problem" | "session", id: string | number) => request<Conversation[]>(`/api/ai/${scope}s/${encodeURIComponent(String(id))}/conversations`),
+  aiCreateConversation: (scope: "problem" | "session", id: string | number, title = "") => request<Conversation>(`/api/ai/${scope}s/${encodeURIComponent(String(id))}/conversations`, { method: "POST", body: JSON.stringify({ title }) }),
+  aiConversation: (id: string) => request<Conversation>(`/api/ai/conversations/${encodeURIComponent(id)}`),
+  aiMessage: (id: string, content: string, idempotency_key: string) => request<{ run: AIRun; created: boolean }>(`/api/ai/conversations/${encodeURIComponent(id)}/messages`, { method: "POST", body: JSON.stringify({ content, idempotency_key }) }),
+  aiGenerate: (scope: "problem" | "session" | "learning", id: string | number, kind: "lesson" | "visualization" | "diagnosis", instructions: string, idempotency_key: string) => request<{ run: AIRun; created: boolean }>(scope === "learning" ? "/api/ai/learning/diagnosis" : `/api/ai/${scope}s/${encodeURIComponent(String(id))}/${kind}`, { method: "POST", body: JSON.stringify({ instructions, idempotency_key }) }),
+  aiRun: (id: string) => request<AIRun>(`/api/ai/runs/${encodeURIComponent(id)}`),
+  aiCancel: (id: string) => request<{ id: string; status: string; cancel_requested: boolean }>(`/api/ai/runs/${encodeURIComponent(id)}/cancel`, { method: "POST", body: "{}" }),
+  aiArtifacts: (scope: "problem" | "session", id: string | number, kind?: string) => request<AIArtifact[]>(`/api/ai/${scope}s/${encodeURIComponent(String(id))}/artifacts${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`),
+  aiLatestArtifact: (scope: "problem" | "session", id: string | number, kind: string) => request<AIArtifact>(`/api/ai/${scope}s/${encodeURIComponent(String(id))}/artifacts/latest?kind=${encodeURIComponent(kind)}`),
+  aiDiagnosisHistory: () => request<AIArtifact[]>("/api/ai/learning/diagnosis/history"),
 };
+
+export async function streamAIRunEvents(runId: string, onEvent: (event: import("./types").SSEEvent) => void, signal?: AbortSignal, lastEventId = "0"): Promise<string> {
+  const response = await fetch(`/api/ai/runs/${encodeURIComponent(runId)}/events`, { headers: { Accept: "text/event-stream", "Last-Event-ID": lastEventId }, signal });
+  if (!response.ok || !response.body) throw new ApiError("Could not open AI event stream", response.status);
+  const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = ""; let cursor = lastEventId;
+  for (;;) {
+    const { done, value } = await reader.read(); if (done) break;
+    buffer += decoder.decode(value, { stream: true }); const blocks = buffer.split("\n\n"); buffer = blocks.pop() || "";
+    for (const block of blocks) {
+      let event = "message", data = "{}", id = cursor;
+      for (const line of block.split("\n")) { if (line.startsWith("id:")) id = line.slice(3).trim(); else if (line.startsWith("event:")) event = line.slice(6).trim(); else if (line.startsWith("data:")) data = line.slice(5).trim(); }
+      if (id !== cursor || event !== "message") { cursor = id; onEvent({ id, event, data: JSON.parse(data) as Record<string, unknown> }); }
+    }
+  }
+  return cursor;
+}
+
+export async function waitForAIRun(runId: string, onUpdate?: (run: AIRun) => void, signal?: AbortSignal): Promise<AIRun> {
+  let delay = 500;
+  for (;;) {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    const run = await api.aiRun(runId); onUpdate?.(run);
+    if (["completed", "failed", "cancelled"].includes(run.status)) return run;
+    await new Promise<void>((resolve, reject) => { const timer = window.setTimeout(resolve, delay); signal?.addEventListener("abort", () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); }, { once: true }); });
+    delay = Math.min(2000, Math.round(delay * 1.4));
+  }
+}

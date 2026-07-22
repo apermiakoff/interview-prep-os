@@ -4,7 +4,7 @@ import { deriveFacts, FinishSheet, previewLine } from "../src/components/FinishS
 
 describe("deriveFacts", () => {
   test("independent outcome with no hints records a green independent attempt", () => {
-    expect(deriveFacts("independent", false, true, "", 4)).toEqual({
+    expect(deriveFacts("independent", false, false, true, "", 4)).toEqual({
       result: "green",
       accepted: true,
       independent: true,
@@ -14,21 +14,21 @@ describe("deriveFacts", () => {
   });
 
   test("hints strip independence even if the outcome claims it", () => {
-    expect(deriveFacts("independent", true, true, "")).toMatchObject({
+    expect(deriveFacts("independent", true, false, true, "")).toMatchObject({
       result: "green",
       independent: false,
     });
   });
 
   test("assisted and solution outcomes carry the blocker and never independence", () => {
-    expect(deriveFacts("assisted", true, true, "implementation")).toEqual({
+    expect(deriveFacts("assisted", true, false, true, "implementation")).toEqual({
       result: "yellow",
       accepted: true,
       independent: false,
       failure_tag: "implementation",
       explanation_score: undefined,
     });
-    expect(deriveFacts("solution", false, false, "derivation")).toMatchObject({
+    expect(deriveFacts("solution", false, false, false, "derivation")).toMatchObject({
       result: "red",
       independent: false,
       failure_tag: "derivation",
@@ -36,7 +36,7 @@ describe("deriveFacts", () => {
   });
 
   test("skipped clears accepted and explanation", () => {
-    expect(deriveFacts("skipped", false, true, "bugs", 3)).toEqual({
+    expect(deriveFacts("skipped", false, false, true, "bugs", 3)).toEqual({
       result: "skipped",
       accepted: false,
       independent: false,
@@ -47,7 +47,7 @@ describe("deriveFacts", () => {
 });
 
 test("previewLine states the exact record", () => {
-  const facts = deriveFacts("assisted", true, true, "implementation", 3);
+  const facts = deriveFacts("assisted", true, false, true, "implementation", 3);
   expect(previewLine(facts, "H2", 23)).toBe(
     "Records: yellow · assisted · H2 · accepted · blocker: implementation · explains 3/5 · 23 min",
   );
@@ -59,6 +59,7 @@ test("FinishSheet disables Independent after hints and requires a blocker for re
     <FinishSheet
       origin="ad_hoc"
       hintsUsed
+      aiAssisted={false}
       highestHint="H2"
       elapsedMinutes={12}
       busy={false}
@@ -88,4 +89,22 @@ test("FinishSheet disables Independent after hints and requires a blocker for re
     independent: false,
     failure_tag: "derivation",
   }));
+});
+
+test("FinishSheet disables Independent with an accurate AI coaching reason", () => {
+  render(
+    <FinishSheet
+      origin="scheduled"
+      hintsUsed={false}
+      aiAssisted
+      highestHint={null}
+      elapsedMinutes={8}
+      busy={false}
+      error=""
+      onSubmit={() => {}}
+      onClose={() => {}}
+    />,
+  );
+  expect(screen.getByRole("radio", { name: /Independent/ })).toBeDisabled();
+  expect(screen.getByText(/AI coaching used — this attempt records as assisted/)).toBeInTheDocument();
 });

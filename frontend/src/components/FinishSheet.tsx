@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Result } from "../types";
+import { ModalSurface } from "./ModalSurface";
 
 /*
  * Finish attempt sheet. One mutually exclusive outcome first; the facts follow.
@@ -37,6 +38,7 @@ const BLOCKERS: Array<[string, string]> = [
 export function deriveFacts(
   outcome: Outcome,
   hintsUsed: boolean,
+  aiAssisted: boolean,
   accepted: boolean,
   blocker: string,
   explanation?: number,
@@ -49,7 +51,7 @@ export function deriveFacts(
   return {
     result,
     accepted: outcome === "skipped" ? false : accepted,
-    independent: outcome === "independent" && !hintsUsed,
+    independent: outcome === "independent" && !hintsUsed && !aiAssisted,
     failure_tag: result === "green" ? "none" : result === "skipped" ? "unspecified" : blocker || "unspecified",
     explanation_score: outcome === "skipped" ? undefined : explanation,
   };
@@ -71,6 +73,7 @@ export function previewLine(facts: FinishFacts, highestHint: string | null, elap
 interface Props {
   origin: "scheduled" | "ad_hoc";
   hintsUsed: boolean;
+  aiAssisted: boolean;
   highestHint: string | null;
   elapsedMinutes: number;
   elapsedCapped?: boolean;
@@ -81,57 +84,25 @@ interface Props {
   onClose: () => void;
 }
 
-export function FinishSheet({ origin, hintsUsed, highestHint, elapsedMinutes, elapsedCapped = false, busy, error, onSubmit, onAbandon, onClose }: Props) {
+export function FinishSheet({ origin, hintsUsed, aiAssisted, highestHint, elapsedMinutes, elapsedCapped = false, busy, error, onSubmit, onAbandon, onClose }: Props) {
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [accepted, setAccepted] = useState(false);
   const [blocker, setBlocker] = useState("");
   const [explanation, setExplanation] = useState<number | undefined>();
-  const dialogRef = useRef<HTMLElement>(null);
-  const closeRef = useRef(onClose);
-  const busyRef = useRef(busy);
-  closeRef.current = onClose;
-  busyRef.current = busy;
-
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), input:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
-    ));
-    focusable()[0]?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busyRef.current) {
-        event.preventDefault();
-        closeRef.current();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const items = focusable();
-      if (!items.length) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
+    if ((hintsUsed || aiAssisted) && outcome === "independent") setOutcome(null);
+  }, [hintsUsed, aiAssisted, outcome]);
 
   const blockerRequired = outcome === "assisted" || outcome === "solution";
   const facts = useMemo(
-    () => (outcome ? deriveFacts(outcome, hintsUsed, accepted, blocker, explanation) : null),
-    [outcome, hintsUsed, accepted, blocker, explanation],
+    () => (outcome ? deriveFacts(outcome, hintsUsed, aiAssisted, accepted, blocker, explanation) : null),
+    [outcome, hintsUsed, aiAssisted, accepted, blocker, explanation],
   );
   const ready = Boolean(outcome) && (!blockerRequired || Boolean(blocker));
 
   return (
-    <div className="finish-scrim" role="presentation" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
-      <section ref={dialogRef} className="finish-sheet" role="dialog" aria-modal="true" aria-label="Record attempt">
+    <ModalSurface className="finish-scrim" label="Record attempt" modal onClose={onClose} closeDisabled={busy} closeOnBackdrop>
+      <section className="finish-sheet">
         <header className="finish-head">
           <h2>Close the attempt</h2>
           <button className="finish-close" onClick={onClose} aria-label="Close without recording">✕</button>
@@ -140,7 +111,12 @@ export function FinishSheet({ origin, hintsUsed, highestHint, elapsedMinutes, el
         <fieldset className="outcome-choice">
           <legend>Outcome — pick one</legend>
           {OUTCOMES.map(option => {
-            const disabled = option.id === "independent" && hintsUsed;
+            const disabled = option.id === "independent" && (hintsUsed || aiAssisted);
+            const assistanceReason = hintsUsed && aiAssisted
+              ? `Hints used through ${highestHint} and AI coaching used — this attempt records as assisted.`
+              : hintsUsed
+                ? `Hints used through ${highestHint} — this attempt records as assisted.`
+                : "AI coaching used — this attempt records as assisted.";
             return (
               <label key={option.id} className={`outcome-option ${outcome === option.id ? "selected" : ""} ${disabled ? "disabled" : ""}`}>
                 <input
@@ -152,7 +128,7 @@ export function FinishSheet({ origin, hintsUsed, highestHint, elapsedMinutes, el
                   onChange={() => setOutcome(option.id)}
                 />
                 <span className="outcome-title">{option.title}</span>
-                <span className="outcome-detail">{disabled ? `Hints used through ${highestHint} — this attempt records as assisted.` : option.detail}</span>
+                <span className="outcome-detail">{disabled ? assistanceReason : option.detail}</span>
               </label>
             );
           })}
@@ -203,6 +179,6 @@ export function FinishSheet({ origin, hintsUsed, highestHint, elapsedMinutes, el
           </button>
         </footer>
       </section>
-    </div>
+    </ModalSurface>
   );
 }

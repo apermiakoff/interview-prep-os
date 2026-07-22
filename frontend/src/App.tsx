@@ -8,6 +8,7 @@ import { ProfileView } from "./views/ProfileView";
 import { RoadmapView } from "./views/RoadmapView";
 import { SolveView } from "./views/SolveView";
 import { TodayView } from "./views/TodayView";
+import { AISetupView } from "./views/AISetupView";
 
 const navigation = [
   ["today", "Today"],
@@ -36,6 +37,7 @@ function routeLabel(route: string) {
   if (route.startsWith("library")) return "Library";
   if (route.startsWith("solve")) return "Solve Room";
   if (route === "profile") return "Profile";
+  if (route === "settings/ai") return "AI Setup";
   return navigation.find(([name]) => name === route)?.[1] || "Today";
 }
 
@@ -103,7 +105,8 @@ export function App() {
       {route === "brain" && <BrainView data={data} navigate={navigate} />}
       {route === "roadmap" && <RoadmapView navigate={navigate} />}
       {route.startsWith("library") && <LibraryView data={data} navigate={navigate} sub={librarySub} />}
-      {route === "profile" && <ProfileView data={data} />}
+      {route === "profile" && <ProfileView data={data} navigate={navigate} />}
+      {route === "settings/ai" && <AISetupView />}
       {problemId != null && Number.isFinite(problemId) && <ProblemDetailView problemId={problemId} data={data} navigate={navigate} />}
 
       <footer><span>Private training system · append-only evidence</span><span>{data.workload.total} queued problems · generated {new Date(data.generated_at).toLocaleString("en", { timeZone: data.timezone, timeZoneName: "short" })}</span></footer>
