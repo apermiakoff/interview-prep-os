@@ -295,6 +295,13 @@ BEGIN
 END;
 """
 
+# Provider details remain in ai.db; core records only that coaching occurred so
+# subsequent attempt evidence can never be classified as independent.
+AI_ASSISTANCE_SCHEMA = """
+ALTER TABLE practice_sessions ADD COLUMN ai_assisted INTEGER NOT NULL DEFAULT 0
+    CHECK(ai_assisted IN (0, 1));
+"""
+
 
 # Hierarchical error taxonomy. Top-level ids intentionally match the legacy
 # failure_tag vocabulary ('bugs' maps to 'testing') so the backfill is honest.
@@ -381,6 +388,10 @@ def _migrate_integrity(connection: sqlite3.Connection) -> None:
     _begin_schema_migration(connection, INTEGRITY_SCHEMA)
 
 
+def _migrate_ai_assistance(connection: sqlite3.Connection) -> None:
+    _begin_schema_migration(connection, AI_ASSISTANCE_SCHEMA)
+
+
 def seed_error_types(connection: sqlite3.Connection) -> None:
     for error_id, title, parent, description in ERROR_TYPE_SEED:
         connection.execute(
@@ -454,6 +465,7 @@ MIGRATIONS: list[tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (4, "pattern-skill and failure-tag backfill", _migrate_learning_backfill),
     (5, "practice sessions + session hint events", _migrate_sessions),
     (6, "idempotency ownership + scheduled-session consistency guards", _migrate_integrity),
+    (7, "AI coaching assistance marker", _migrate_ai_assistance),
 ]
 
 LATEST_VERSION = MIGRATIONS[-1][0]

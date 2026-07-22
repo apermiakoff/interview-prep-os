@@ -1,8 +1,24 @@
+x-ai-environment: &ai-environment
+  INTERVIEW_PREP_AI_DB: /ai-data/interview-prep-ai.db
+  INTERVIEW_PREP_AI_ENABLED: ${INTERVIEW_PREP_AI_ENABLED:-false}
+  INTERVIEW_PREP_AI_PROVIDER: ${INTERVIEW_PREP_AI_PROVIDER:-ollama}
+  INTERVIEW_PREP_AI_MODEL: ${INTERVIEW_PREP_AI_MODEL:-llama3.2}
+  INTERVIEW_PREP_AI_BASE_URL: ${INTERVIEW_PREP_AI_BASE_URL:-http://ollama:11434}
+  INTERVIEW_PREP_AI_API_KEY_FILE: /run/secrets/ai_api_key
+  INTERVIEW_PREP_AI_MONTHLY_TOKEN_BUDGET: ${INTERVIEW_PREP_AI_MONTHLY_TOKEN_BUDGET:-1000000}
+  INTERVIEW_PREP_AI_MAX_INPUT_TOKENS: ${INTERVIEW_PREP_AI_MAX_INPUT_TOKENS:-12000}
+  INTERVIEW_PREP_AI_MAX_OUTPUT_TOKENS: ${INTERVIEW_PREP_AI_MAX_OUTPUT_TOKENS:-2048}
+  INTERVIEW_PREP_AI_MAX_RETRIES: ${INTERVIEW_PREP_AI_MAX_RETRIES:-2}
+  INTERVIEW_PREP_AI_LEASE_SECONDS: ${INTERVIEW_PREP_AI_LEASE_SECONDS:-60}
+  INTERVIEW_PREP_AI_ALLOW_PRIVATE_BASE_URL: ${INTERVIEW_PREP_AI_ALLOW_PRIVATE_BASE_URL:-false}
+  INTERVIEW_PREP_AI_ALLOWED_BASE_HOSTS: ${INTERVIEW_PREP_AI_ALLOWED_BASE_HOSTS:-}
+
 services:
   app:
     build: .
     restart: unless-stopped
     environment:
+      <<: *ai-environment
       INTERVIEW_PREP_DB: /data/interview-prep.db
       INTERVIEW_PREP_STATIC: /app/frontend/dist
       INTERVIEW_PREP_LEGACY_STATE: /legacy/coach/state.json
@@ -13,6 +29,8 @@ services:
       INTERVIEW_PREP_ALLOWED_HOSTS: ubuntu-16gb-nbg1-1-hermes.tail1fd6b9.ts.net
     volumes:
       - ./data:/data
+      - ai-data:/ai-data
+      - ${INTERVIEW_PREP_AI_API_KEY_FILE:-./secrets/ai_api_key.empty}:/run/secrets/ai_api_key:ro
       - /home/hermes/.hermes/leetcode-coach:/legacy/coach
       - /home/hermes/.hermes/scripts/leetcode-coach:/legacy/scripts:ro
       - /home/hermes/aleksandr-interview-study-plan.md:/legacy/plan.md:ro
@@ -24,3 +42,16 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+  ai-worker:
+    profiles: ["ai"]
+    build: .
+    restart: on-failure
+    command: [".venv/bin/python", "-m", "app.ai.worker"]
+    environment:
+      <<: *ai-environment
+    volumes:
+      - ai-data:/ai-data
+      - ${INTERVIEW_PREP_AI_API_KEY_FILE:-./secrets/ai_api_key.empty}:/run/secrets/ai_api_key:ro
+
+volumes:
+  ai-data:

@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app.ai.api import router as ai_router
 from app.api import router
 from app.db import init_db, transaction
 from app.repository import seed_content
@@ -70,6 +71,7 @@ async def security_headers(request: Request, call_next):
 
 
 app.include_router(router)
+app.include_router(ai_router)
 
 static_dir = Path(
     os.getenv("INTERVIEW_PREP_STATIC", Path(__file__).parents[1] / "frontend" / "dist")

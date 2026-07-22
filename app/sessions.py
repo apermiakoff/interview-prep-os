@@ -523,13 +523,17 @@ def _record_evidence(
     session_id: str,
     now: datetime,
 ) -> AttemptOutcome:
+    assistance = connection.execute(
+        "SELECT ai_assisted FROM practice_sessions WHERE id = ?", (session_id,)
+    ).fetchone()
+    independent = payload.independent and not bool(assistance and assistance["ai_assisted"])
     return record_attempt_evidence(
         connection,
         problem_id=problem_id,
         event_id=event_id,
         result=payload.result,
         accepted=payload.accepted,
-        independent=payload.independent,
+        independent=independent,
         highest_hint=highest_hint,
         duration_minutes=payload.duration_minutes,
         failure_tag=payload.failure_tag,
@@ -582,9 +586,10 @@ def _record_scheduled_legacy_attempt(
 
     if phase != "done":
         failure_tag = "unspecified" if payload.result == "skipped" else payload.failure_tag
+        independent = payload.independent and not bool(session["ai_assisted"])
         extra = [
             "--accepted" if payload.accepted else "--no-accepted",
-            "--independent" if payload.independent else "--no-independent",
+            "--independent" if independent else "--no-independent",
             "--failure-tag",
             failure_tag,
         ]
