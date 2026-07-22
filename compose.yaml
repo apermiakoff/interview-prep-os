@@ -48,6 +48,7 @@ services:
     profiles: ["ai"]
     build: .
     restart: on-failure
+    network_mode: host
     command: [".venv/bin/python", "-m", "app.ai.worker"]
     environment:
       <<: *ai-environment
