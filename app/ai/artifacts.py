@@ -47,7 +47,10 @@ def prompt(kind: str, snapshot: dict, request: dict) -> tuple[str, str]:
     }[kind]
     if active:
         mode += " The attempt is active: do not reveal a full solution or any unrevealed hint."
-    user = json.dumps({"task": mode, "request": request, "context": snapshot}, ensure_ascii=False)
+    payload = {"task": mode, "request": request, "context": snapshot}
+    if kind != "chat":
+        payload["output_schema"] = ARTIFACT_MODELS[kind].model_json_schema()
+    user = json.dumps(payload, ensure_ascii=False)
     return POLICY, user
 
 

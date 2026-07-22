@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.ai.ai_db import connect as ai_connect
 from app.ai.ai_db import migrate
+from app.ai.artifacts import prompt
 from app.ai.config import AIConfig, AIConfigError, validate_base_url
 from app.ai.context import learning_snapshot, problem_snapshot, session_snapshot
 from app.ai.domain import DiagnosisArtifact, VisualizationArtifact
@@ -73,6 +74,18 @@ def test_url_policy(monkeypatch):
     assert validate_base_url(
         "http://127.0.0.1:11434", provider="ollama", allow_private=False
     ).endswith("11434")
+
+
+def test_structured_prompts_include_exact_schema_but_chat_does_not():
+    _, lesson_user = prompt("lesson", {"problem": {"title": "Example"}}, {})
+    lesson_payload = json.loads(lesson_user)
+    schema = lesson_payload["output_schema"]
+    assert schema["properties"]["schema_version"]["const"] == "lesson@1"
+    assert schema["additionalProperties"] is False
+    assert set(schema["required"]) >= {"objectives", "sections", "complexity"}
+
+    _, chat_user = prompt("chat", {"problem": {"title": "Example"}}, {})
+    assert "output_schema" not in json.loads(chat_user)
 
 
 def test_context_allowlist_and_hidden_hints(db_path):
