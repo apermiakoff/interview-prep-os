@@ -6,13 +6,13 @@ COPY tsconfig*.json vite.config.ts ./
 COPY frontend ./frontend
 RUN npm run build
 
-FROM python:3.11-slim AS runtime
+FROM python:3.11-alpine AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     INTERVIEW_PREP_DB=/data/interview-prep.db \
     INTERVIEW_PREP_STATIC=/app/frontend/dist
 WORKDIR /app
-RUN groupadd --gid 1000 app && useradd --uid 1000 --gid 1000 --home /app app
+RUN addgroup -g 1000 -S app && adduser -u 1000 -S -D -G app -h /app app
 COPY pyproject.toml uv.lock* ./
 RUN pip install --no-cache-dir uv \
     && (uv sync --no-dev --frozen || uv sync --no-dev) \
