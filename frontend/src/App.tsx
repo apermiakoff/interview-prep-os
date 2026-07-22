@@ -11,10 +11,10 @@ import { TodayView } from "./views/TodayView";
 import { AISetupView } from "./views/AISetupView";
 
 const navigation = [
-  ["today", "Today"],
-  ["brain", "Brain"],
-  ["roadmap", "Roadmap"],
-  ["library", "Library"],
+  ["today", "Today", "⌂"],
+  ["brain", "Brain", "◈"],
+  ["roadmap", "Roadmap", "⌘"],
+  ["library", "Library", "▦"],
 ] as const;
 
 // Old bookmarks and in-app links keep working after the IA change.
@@ -41,14 +41,22 @@ function routeLabel(route: string) {
   return navigation.find(([name]) => name === route)?.[1] || "Today";
 }
 
+type Theme = "light" | "dark";
+
+function initialTheme(): Theme {
+  try {
+    const stored = localStorage.getItem("interview-prep-theme");
+    if (stored === "light" || stored === "paper") return "light";
+    if (stored === "dark" || stored === "ink") return "dark";
+  } catch { /* storage may be denied */ }
+  return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
+
 export function App() {
   const [data, setData] = useState<Bootstrap | null>(null);
   const [route, setRoute] = useState(currentRoute());
   const [error, setError] = useState("");
-  const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem("interview-prep-theme") || "ink"; }
-    catch { return "ink"; }
-  });
+  const [theme, setTheme] = useState<Theme>(initialTheme);
 
   useEffect(() => {
     api.bootstrap().then(setData).catch(reason => setError(reason instanceof Error ? reason.message : "Could not load the training system."));
@@ -60,6 +68,7 @@ export function App() {
   }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
     try { localStorage.setItem("interview-prep-theme", theme); } catch { /* storage may be denied */ }
   }, [theme]);
   useEffect(() => {
@@ -94,10 +103,16 @@ export function App() {
 
   return (
     <div className="app-shell">
+      <aside className="activity-rail" aria-label="Application navigation">
+        <button className="rail-brand" onClick={() => navigate("today")} aria-label="Interview Prep OS home"><span className="brand-mark">IP</span></button>
+        <nav aria-label="Primary navigation">{navigation.map(([name, label, icon]) => <button key={name} onClick={() => navigate(name)} className={activeNav === name ? "active" : ""} aria-current={activeNav === name ? "page" : undefined}><span className="nav-icon" aria-hidden="true">{icon}</span><span className="nav-label">{label}</span>{name === "library" && dueCount ? <i className="nav-count">{dueCount}</i> : null}</button>)}</nav>
+        <button className={`profile-button ${route === "profile" ? "active" : ""}`} onClick={() => navigate("profile")} aria-label="Open profile">AP</button>
+      </aside>
       <header className="masthead">
-        <button className="brand" onClick={() => navigate("today")} aria-label="Interview Prep OS home"><span className="brand-mark">IP</span><span><strong>Interview Prep</strong><em>Operating System</em></span></button>
-        <nav aria-label="Primary navigation">{navigation.map(([name, label]) => <button key={name} onClick={() => navigate(name)} className={activeNav === name ? "active" : ""} aria-current={activeNav === name ? "page" : undefined}>{label}{name === "library" && dueCount ? <i className="nav-count">{dueCount}</i> : null}</button>)}</nav>
-        <div className="masthead-actions"><span className="private-badge">private</span><button className="theme-toggle" aria-label="Toggle color theme" onClick={() => setTheme(value => value === "ink" ? "paper" : "ink")}><span /><span /></button><button className={`profile-button ${route === "profile" ? "active" : ""}`} onClick={() => navigate("profile")} aria-label="Profile">AP</button></div>
+        <button className="brand" onClick={() => navigate("today")} aria-label="Interview Prep OS home"><span className="brand-mark">IP</span><span><strong>Interview Prep OS</strong><em>Private workspace</em></span></button>
+        <div className="context-title"><span>Workspace</span><strong>{routeLabel(route)}</strong></div>
+        <nav aria-label="Primary navigation">{navigation.map(([name, label, icon]) => <button key={name} onClick={() => navigate(name)} className={activeNav === name ? "active" : ""} aria-current={activeNav === name ? "page" : undefined}><span aria-hidden="true">{icon}</span><span>{label}</span>{name === "library" && dueCount ? <i className="nav-count">{dueCount}</i> : null}</button>)}</nav>
+        <div className="masthead-actions"><span className="private-badge">Local · private</span><button className="theme-toggle" type="button" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} aria-pressed={theme === "light"} title={`Use ${theme === "dark" ? "light" : "dark"} theme`} onClick={() => setTheme(value => value === "dark" ? "light" : "dark")}><span aria-hidden="true">{theme === "dark" ? "☾" : "☀"}</span><span>{theme === "dark" ? "Dark" : "Light"}</span></button><button className={`profile-button ${route === "profile" ? "active" : ""}`} onClick={() => navigate("profile")} aria-label="Open profile">AP</button></div>
       </header>
 
       {route === "today" && <TodayView data={data} navigate={navigate} />}

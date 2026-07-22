@@ -1,10 +1,67 @@
-/* Embedded AI is rendered as a learning instrument, using the existing paper tokens. */
-.coach-panel,.ai-artifact-panel,.diagnosis-panel,.setup-status,.setup-guide,.settings-link{border:1px solid var(--rule);background:var(--surface);padding:24px;margin:24px 0;min-width:0}
-.coach-panel>header,.ai-artifact-panel>header,.diagnosis-panel>header,.semantic-viz>header,.setup-status>header,.settings-link{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.coach-panel h2,.ai-artifact-panel h2,.diagnosis-panel h2{margin:4px 0}.coach-close{width:44px;height:44px;border:1px solid var(--rule);background:transparent;color:inherit;font-size:26px}.assistance-warning,.policy-note{border-left:3px solid var(--amber);padding:10px 14px;font-size:.9rem;line-height:1.5}.coach-messages{min-height:180px;max-height:45vh;overflow:auto;padding:12px 0}.coach-message{max-width:88%;margin:10px 0;padding:12px 14px;border-left:2px solid var(--rule);white-space:pre-wrap;overflow-wrap:anywhere}.coach-message.user{margin-left:auto;background:var(--surface-2)}.coach-message span,.artifact-meta,.ai-provenance{font:700 .68rem/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;opacity:.7}.coach-message p{margin:5px 0}.prompt-shortcuts{display:flex;gap:8px;overflow:auto;padding:4px 0 10px}.prompt-shortcuts button{min-height:44px;white-space:nowrap;border:1px solid var(--line);background:transparent;color:inherit;padding:8px 12px}.coach-composer label,.artifact-controls label,.thread-picker{display:grid;gap:7px;font-weight:700}.coach-composer textarea,.artifact-controls input,select{width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--bg);color:inherit;padding:12px;font:inherit}.coach-composer .button{margin-top:10px}.ai-empty,.ai-error{padding:18px;border:1px dashed var(--line);overflow-wrap:anywhere}.ai-error{border-color:var(--red,#a64b42)}.ai-skeleton{height:220px;background:linear-gradient(90deg,transparent,rgba(127,127,127,.12),transparent);animation:aiPulse 1.2s infinite}@keyframes aiPulse{50%{opacity:.45}}.coach-overlay{position:fixed;z-index:40;right:0;top:0;bottom:0;width:min(460px,100vw);padding:0 18px;background:var(--bg);box-shadow:-14px 0 40px rgba(0,0,0,.24);overflow:auto}.coach-overlay .coach-panel{margin:0;min-height:100%;border-width:0 0 0 1px}.artifact-controls{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;margin:18px 0}.generated-lesson{max-width:760px}.generated-lesson section{margin:24px 0}.generated-lesson p,.generated-lesson li{line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}.complexity-card{display:grid;gap:7px;padding:16px;border:1px solid var(--line)}.semantic-stage{display:flex;flex-wrap:wrap;gap:10px;padding:24px 0;min-height:120px}.semantic-entity{border:1px solid var(--line);padding:12px;min-width:70px;display:grid;gap:5px}.semantic-entity.active{outline:3px solid var(--accent);outline-offset:2px}.semantic-entity small{overflow-wrap:anywhere}.step-controls{display:flex;justify-content:space-between;align-items:center}.step-controls button{width:44px;height:44px}.diagnosis-content>section{margin:22px 0}.hypothesis,.intervention{padding:14px;border-left:2px solid var(--line);margin:12px 0}.hypothesis header{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.hypothesis header span{font-size:.8rem;text-transform:uppercase}.intervention strong{font-size:.75rem;text-transform:uppercase}.provider-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:24px 0}.provider-grid article,.setup-status dl>div{padding:18px;border:1px solid var(--line)}.setup-guide pre{overflow:auto;padding:16px;background:#111;color:#eee}.setup-status dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.setup-status dt{font-size:.75rem;text-transform:uppercase}.setup-status dd{margin:5px 0;overflow-wrap:anywhere}.detail-tabs{overflow-x:auto}.detail-tabs button{min-height:44px;white-space:nowrap}
-@media(max-width:700px){.coach-overlay{width:100%;padding:0}.coach-overlay .coach-panel{padding:18px;margin:0}.artifact-controls{grid-template-columns:1fr}.provider-grid,.setup-status dl{grid-template-columns:1fr}.coach-panel,.ai-artifact-panel,.diagnosis-panel{padding:16px}.session-bar-commands .coach-trigger{min-width:44px;min-height:44px}.prompt-shortcuts{margin-inline:-4px}.semantic-stage{flex-wrap:nowrap;overflow:auto}.semantic-entity{flex:0 0 auto}.ai-setup pre{font-size:.72rem}body{overflow-x:hidden}}
+/* AI surfaces are scoped to AI components and consume the global semantic tokens. */
+.coach-panel, .ai-artifact-panel, .diagnosis-panel, .setup-status, .setup-guide, .settings-link {
+  min-width: 0; margin: 20px 0; padding: 18px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-surface);
+}
+.coach-panel > header, .ai-artifact-panel > header, .diagnosis-panel > header, .semantic-viz > header, .setup-status > header, .settings-link { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.coach-panel h2, .ai-artifact-panel h2, .diagnosis-panel h2 { margin: 4px 0; }
+.coach-close { width: 36px; height: 36px; border: 1px solid var(--color-border); border-radius: 4px; background: transparent; color: var(--color-text); font-size: 22px; cursor: pointer; }
+.assistance-warning, .coach-panel .policy-note { padding: 9px 12px; border-left: 3px solid var(--color-warning); font-size: .9rem; line-height: 1.5; }
+.coach-messages { min-height: 180px; max-height: 45vh; overflow: auto; padding: 10px 0; }
+.coach-message { max-width: 88%; margin: 8px 0; padding: 10px 12px; border-left: 2px solid var(--color-border-strong); white-space: pre-wrap; overflow-wrap: anywhere; }
+.coach-message.user { margin-left: auto; background: var(--color-surface-raised); }
+.coach-message span, .artifact-meta, .ai-provenance { color: var(--color-text-muted); font: 700 .68rem/1.2 var(--sans); letter-spacing: .08em; text-transform: uppercase; }
+.coach-message p { margin: 5px 0; }
+.prompt-shortcuts { display: flex; gap: 8px; overflow: auto; padding: 4px 0 10px; }
+.prompt-shortcuts button { min-height: 36px; padding: 7px 10px; border: 1px solid var(--color-border); border-radius: 4px; background: transparent; color: var(--color-text); white-space: nowrap; }
+.coach-composer label, .artifact-controls label, .thread-picker { display: grid; gap: 7px; font-weight: 700; }
+.coach-composer textarea, .artifact-controls input, .coach-panel select, .ai-artifact-panel select, .ai-setup select { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-bg); color: var(--color-text); font: inherit; }
+.coach-composer .button { margin-top: 10px; }
+.ai-empty, .ai-error { padding: 14px; border: 1px dashed var(--color-border-strong); overflow-wrap: anywhere; }
+.ai-error { border-color: var(--color-danger); }
+.ai-skeleton { height: 220px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-text) 10%, transparent), transparent); animation: ai-pulse 1.2s infinite; }
+@keyframes ai-pulse { 50% { opacity: .45; } }
+.coach-overlay { position: fixed; z-index: 40; inset: 0 0 0 auto; width: min(460px, 100vw); padding: 0 16px; overflow: auto; background: var(--color-bg); border-left: 1px solid var(--color-border-strong); box-shadow: -14px 0 40px rgb(0 0 0 / 24%); }
+.coach-overlay .coach-panel { min-height: 100%; margin: 0; border: 0; background: transparent; }
+.artifact-controls { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; margin: 16px 0; }
+.generated-lesson { max-width: 760px; }
+.generated-lesson section { margin: 20px 0; }
+.generated-lesson p, .generated-lesson li { line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.complexity-card { display: grid; gap: 7px; padding: 14px; border: 1px solid var(--color-border); }
+.semantic-stage { display: flex; flex-wrap: wrap; gap: 10px; min-height: 120px; padding: 20px 0; }
+.semantic-entity { min-width: 70px; display: grid; gap: 5px; padding: 10px; border: 1px solid var(--color-border); }
+.semantic-entity.active { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.semantic-entity small { overflow-wrap: anywhere; }
+.step-controls { display: flex; justify-content: space-between; align-items: center; }
+.step-controls button { width: 40px; height: 40px; }
+.diagnosis-content > section { margin: 20px 0; }
+.hypothesis, .intervention { margin: 10px 0; padding: 12px; border-left: 2px solid var(--color-border-strong); }
+.hypothesis header { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hypothesis header span, .intervention strong { font-size: .75rem; text-transform: uppercase; }
+.provider-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+.provider-grid article, .setup-status dl > div { padding: 14px; border: 1px solid var(--color-border); }
+.setup-guide pre { overflow: auto; padding: 14px; background: var(--color-bg); color: var(--color-text); }
+.setup-status dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.setup-status dt { color: var(--color-text-muted); font-size: .75rem; text-transform: uppercase; }
+.setup-status dd { margin: 5px 0; overflow-wrap: anywhere; }
+.ai-session-lock { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 18px 0; padding: 16px 18px; border: 1px solid var(--color-warning); background: var(--color-surface); }
+.ai-session-lock h2 { margin: 4px 0 6px; }
+.ai-session-lock p { max-width: 760px; margin: 0; }
+.ai-session-lock .button { flex: 0 0 auto; min-height: 40px; }
+.ai-recovery { padding: 12px; border: 1px dashed var(--color-warning); }
+.recovery-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.recovery-actions .button { min-height: 40px; }
 
-.ai-session-lock{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:20px 0;padding:20px 22px;border:1px solid var(--amber);background:var(--surface)}
-.ai-session-lock h2{margin:4px 0 6px}.ai-session-lock p{margin:0;max-width:760px}.ai-session-lock .button{flex:0 0 auto;min-height:44px}
-.ai-recovery{padding:14px;border:1px dashed var(--amber)}.recovery-actions{display:flex;gap:10px;flex-wrap:wrap}.recovery-actions .button{min-height:44px}
-@media(max-width:700px){.coach-overlay{height:100dvh;max-height:100dvh;overflow:auto;overscroll-behavior:contain}.coach-overlay .coach-panel{min-height:100%;box-sizing:border-box}.coach-overlay button,.coach-overlay textarea,.coach-overlay select{min-height:44px}.ai-session-lock{align-items:stretch;flex-direction:column}.ai-session-lock .button{width:100%}}
-
+@media (max-width: 700px) {
+  .coach-overlay { width: 100%; height: 100dvh; max-height: 100dvh; padding: 0; overflow: auto; overscroll-behavior: contain; }
+  .coach-overlay .coach-panel { min-height: 100%; padding: 16px; }
+  .coach-overlay button, .coach-overlay textarea, .coach-overlay select { min-height: 44px; }
+  .artifact-controls, .provider-grid, .setup-status dl { grid-template-columns: 1fr; }
+  .coach-panel, .ai-artifact-panel, .diagnosis-panel { padding: 14px; }
+  .session-bar-commands .coach-trigger { min-width: 44px; min-height: 44px; }
+  .prompt-shortcuts { margin-inline: -4px; }
+  .semantic-stage { flex-wrap: nowrap; overflow: auto; }
+  .semantic-entity { flex: 0 0 auto; }
+  .ai-setup pre { font-size: .72rem; }
+  .ai-session-lock { align-items: stretch; flex-direction: column; }
+  .ai-session-lock .button { width: 100%; }
+}

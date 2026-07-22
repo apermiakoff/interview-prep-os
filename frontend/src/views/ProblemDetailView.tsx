@@ -4,6 +4,7 @@ import { AlgorithmVisualizer } from "../components/AlgorithmVisualizer";
 import type { Bootstrap, LessonDocument, ProblemDetail, SkillStateCell } from "../types";
 import { CoachPanel } from "../components/CoachPanel";
 import { AIArtifactPanel } from "../components/AIArtifactPanel";
+import "../problem-workspace.css";
 
 const CORE_DIMENSIONS = ["recognition", "derivation", "implementation"] as const;
 
@@ -56,6 +57,7 @@ export function ProblemDetailView({ problemId, data, navigate }: { problemId: nu
 
   const { problem, attempts, reviews, memory, content, scheduled_assignment, open_practice_session, skills, prerequisites, related_problems, placements } = detail;
   const aiLocked = Boolean(open_practice_session);
+  const focusedTool = tab === "coach" || tab === "generated" || tab === "visualization";
   const otherScheduled = data.active_assignment && data.active_assignment.problem_id !== problemId ? data.active_assignment : null;
 
   const startPaperAttempt = async () => {
@@ -71,60 +73,57 @@ export function ProblemDetailView({ problemId, data, navigate }: { problemId: nu
   };
 
   return (
-    <main className="view page-shell problem-detail" id="main-content">
-      <button className="back-link" onClick={() => navigate("library")}>← Library</button>
-      <header className="problem-detail-hero">
-        <div>
+    <main className={`view page-shell problem-detail ${focusedTool ? "focused-tool" : ""}`} id="main-content">
+      <header className="problem-workspace-header">
+        <div className="problem-workspace-titlebar">
+          <button className="back-link" onClick={() => navigate("library")}>← Library</button>
           <div className="problem-kicker"><span>{problem.leetcode_id ? `LeetCode ${problem.leetcode_id}` : "Personal catalog"}</span><i>{problem.difficulty || "Difficulty unverified"}</i></div>
           <h1>{problem.title}</h1>
           {placements.length > 0 && (
             <div className="placement-chips">
               {placements.map(placement => (
                 <span className={`placement-chip ${placement.kind}`} key={`${placement.curriculum_id}:${placement.position}`}>
-                  {placement.curriculum_title}
-                  {placement.week_label ? ` · ${placement.week_label}` : ""}
-                  {placement.topic ? ` · ${placement.topic}` : ""}
+                  {placement.curriculum_title}{placement.week_label ? ` · ${placement.week_label}` : ""}{placement.topic ? ` · ${placement.topic}` : ""}
                 </span>
               ))}
             </div>
           )}
-          <div className="hero-actions">
-            {scheduled_assignment ? (
-              <>
-                <button className="button primary" onClick={() => navigate("solve")}>
-                  Continue scheduled attempt →
-                </button>
-                <button className="button subtle" disabled={launching} onClick={startPaperAttempt}>
-                  {open_practice_session ? "Continue extra practice →" : "Practice extra →"}
-                </button>
-              </>
-            ) : (
-              <button className="button primary" disabled={launching} onClick={startPaperAttempt}>
-                {open_practice_session ? "Continue paper attempt →" : "Start paper attempt →"}
-              </button>
-            )}
+          <div className="hero-actions problem-workspace-actions">
+            {scheduled_assignment ? <>
+              <button className="button primary" onClick={() => navigate("solve")}>Continue scheduled attempt →</button>
+              <button className="button subtle" disabled={launching} onClick={startPaperAttempt}>{open_practice_session ? "Continue extra practice →" : "Practice extra →"}</button>
+            </> : <button className="button primary" disabled={launching} onClick={startPaperAttempt}>{open_practice_session ? "Continue paper attempt →" : "Start paper attempt →"}</button>}
             <a className="text-link" href={problem.url || `https://leetcode.com/problems/${problem.slug}/`} target="_blank" rel="noreferrer">Open on LeetCode ↗</a>
           </div>
-          {scheduled_assignment && (
-            <p className="extra-practice-note">Extra practice creates a separate session; the scheduled assignment remains untouched.</p>
-          )}
-          {otherScheduled && !scheduled_assignment && (
-            <p className="extra-practice-note">Extra practice. {otherScheduled.title} remains scheduled for {scheduledDate(otherScheduled.assigned_on)}.</p>
-          )}
-          {launchError && <p className="form-message" role="status">{launchError}</p>}
         </div>
-        <aside className="detail-facts">
-          <div><span>Queue</span><strong>{problem.queue_state || "catalog"}</strong></div>
-          <div><span>Evidence</span><strong>{attempts.length} attempt{attempts.length === 1 ? "" : "s"} · {attempts.filter(item => item.independent).length} independent</strong></div>
-          <div><span>Next review</span><strong>{reviews.find(item => item.status !== "completed")?.due_on || memory?.next_due || "Not scheduled"}</strong></div>
-          <div><span>Lesson</span><strong className="fact-provenance">{content.lesson.label}</strong></div>
-          <div><span>Hints</span><strong className="fact-provenance">{content.hints.label}</strong></div>
-        </aside>
+        <details className="problem-inspector">
+          <summary><span>Problem inspector</span><strong>{attempts.length} attempt{attempts.length === 1 ? "" : "s"} · {reviews.filter(item => item.status !== "completed").length} open review{reviews.filter(item => item.status !== "completed").length === 1 ? "" : "s"}</strong></summary>
+          <div className="detail-facts">
+            <div><span>Queue</span><strong>{problem.queue_state || "catalog"}</strong></div>
+            <div><span>Evidence</span><strong>{attempts.length} attempt{attempts.length === 1 ? "" : "s"} · {attempts.filter(item => item.independent).length} independent</strong></div>
+            <div><span>Next review</span><strong>{reviews.find(item => item.status !== "completed")?.due_on || memory?.next_due || "Not scheduled"}</strong></div>
+            <div><span>Lesson</span><strong className="fact-provenance">{content.lesson.label} · {content.lesson.provenance}</strong></div>
+            <div><span>Hints</span><strong className="fact-provenance">{content.hints.label}</strong></div>
+          </div>
+        </details>
+        {scheduled_assignment && <p className="extra-practice-note">Extra practice creates a separate session; the scheduled assignment remains untouched.</p>}
+        {otherScheduled && !scheduled_assignment && <p className="extra-practice-note">Extra practice. {otherScheduled.title} remains scheduled for {scheduledDate(otherScheduled.assigned_on)}.</p>}
+        {launchError && <p className="form-message" role="status">{launchError}</p>}
       </header>
 
-      <nav className="detail-tabs" aria-label="Problem sections">
-        {(["overview", "attempts", "reviews", "lesson", ...(!aiLocked ? ["coach", "generated", "visualization"] as const : [])] as const).map(value => <button key={value} className={tab === value ? "active" : ""} onClick={() => setTab(value)}>{value === "lesson" ? `Lesson · ${content.lesson.provenance}` : value === "generated" ? "Generated lesson" : value}</button>)}
-      </nav>
+      <div className="problem-workspace-nav">
+        <nav className="detail-tabs mode-tabs" aria-label="Problem modes">
+          <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Overview</button>
+          <button className={tab === "attempts" || tab === "reviews" ? "active" : ""} onClick={() => setTab("attempts")}>History</button>
+          <button className={tab === "lesson" ? "active" : ""} onClick={() => setTab("lesson")}>Lesson</button>
+        </nav>
+        {!aiLocked && <nav className="detail-tabs tool-tabs" aria-label="Problem tools">
+          <span>Tools</span>
+          <button className={tab === "generated" ? "active" : ""} onClick={() => setTab("generated")}>Generated lesson</button>
+          <button className={tab === "coach" ? "active" : ""} onClick={() => setTab("coach")}>Coach</button>
+          <button className={tab === "visualization" ? "active" : ""} onClick={() => setTab("visualization")}>Visualization</button>
+        </nav>}
+      </div>
 
       {open_practice_session && <section className="ai-session-lock" aria-label="Problem AI locked during active session">
         <div><span className="eyebrow">Session-scoped assistance required</span><h2>Problem AI is locked while this attempt is open.</h2><p>Use the session-scoped Coach so assistance is accounted for and the hidden-hint policy applies. Problem Coach, generated lessons, and generated visualizations are unavailable until the attempt closes.</p></div>
@@ -181,6 +180,11 @@ export function ProblemDetailView({ problemId, data, navigate }: { problemId: nu
           </section>
         )}
       </>}
+
+      {(tab === "attempts" || tab === "reviews") && <nav className="history-switcher" aria-label="History view">
+        <button className={tab === "attempts" ? "active" : ""} onClick={() => setTab("attempts")}>Attempts <span>{attempts.length}</span></button>
+        <button className={tab === "reviews" ? "active" : ""} onClick={() => setTab("reviews")}>Reviews <span>{reviews.length}</span></button>
+      </nav>}
 
       {tab === "attempts" && <section className="detail-ledger"><div className="section-rule"><span>Attempt history</span><span>{attempts.length} immutable events</span></div>{attempts.length ? attempts.map(attempt => <article className="attempt-line" key={attempt.id}><time>{attempt.occurred_on}</time><span className={`status-dot ${attempt.result}`} /><div><strong>{attempt.result}</strong><p>{attempt.failure_tag || "unclassified blocker"}</p></div><div className="attempt-facts"><span>{attempt.independent ? "independent" : "assisted"}</span><span>{attempt.highest_hint || "H0"}</span>{attempt.duration_minutes != null && <span>{attempt.duration_minutes}m</span>}</div></article>) : <div className="empty-state">No attempts recorded for this problem.</div>}</section>}
 

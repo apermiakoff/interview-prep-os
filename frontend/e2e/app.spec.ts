@@ -59,12 +59,12 @@ test("bootstrap exposes hint levels but never hint bodies", async ({ page }) => 
 test("Library offers Practice and external actions on every rendered row", async ({ page }) => {
   const errors = await collectConsoleErrors(page);
   await page.goto("/#library");
-  await expect(page.getByRole("heading", { name: "Practice any problem." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
   await expect(page.locator(".problem-row")).toHaveCount(25);
   await expect(page.locator(".problem-row .practice-button")).toHaveCount(25);
   await expect(page.locator(".problem-row .external-button")).toHaveCount(25);
   await expect(page.getByText(/maximum 25 rendered/)).toBeVisible();
-  await expect(page.getByPlaceholder("Search title, number, or slug…")).toBeVisible();
+  await expect(page.getByPlaceholder("Search title, #, or slug")).toBeVisible();
 
   // Search by LeetCode number reaches the same problem as its title.
   await page.getByLabel("Search problems").fill("1192");
@@ -77,9 +77,9 @@ test("Library offers Practice and external actions on every rendered row", async
 
   // Bulk refresh keeps the track filter applied (regression check).
   await page.getByRole("button", { name: "Queue", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "The queue, without the pile-up." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Queue", exact: true })).toHaveAttribute("aria-current", "page");
   await page.getByRole("button", { name: "Reviews", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Reviews ordered by evidence." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reviews", exact: true })).toHaveAttribute("aria-current", "page");
   expect(errors).toEqual([]);
 });
 
@@ -125,7 +125,7 @@ test("ad hoc practice: Library → Practice → paper-first solve → recorded e
 
   // Evidence lands on the practiced problem…
   await expect(page).toHaveURL(/#problem\/\d+/);
-  await page.getByRole("button", { name: "attempts", exact: true }).click();
+  await page.getByRole("button", { name: "History", exact: true }).click();
   await expect(page.locator(".attempt-line").first()).toContainText("yellow");
 
   // …and the scheduled assignment is still today's work, byte-for-byte.
@@ -211,10 +211,10 @@ test("same-problem extra practice says the scheduled assignment is preserved", a
   expect(after.id).toBe(scheduled.id);
 });
 
-test("surprise me starts an ad hoc session from the filtered set", async ({ page }) => {
+test("random practice starts an ad hoc session from the filtered set", async ({ page }) => {
   await page.goto("/#library");
   await expect(page.locator(".problem-row").first()).toBeVisible();
-  await page.getByRole("button", { name: /Surprise me/ }).click();
+  await page.getByRole("button", { name: /Random practice/ }).click();
   await expect(page).toHaveURL(/#solve\/ps-/, { timeout: 15_000 });
   await expect(page.locator(".origin-chip")).toHaveText("Extra practice");
 });
@@ -250,6 +250,7 @@ test("problem details always offer a paper attempt and honest content labels", a
   await page.locator(".problem-row .problem-identity").first().click();
   await expect(page.getByRole("heading", { name: "Critical Connections in a Network" })).toBeVisible();
   await expect(page.getByRole("button", { name: /paper attempt/ })).toBeVisible();
+  await page.locator(".problem-inspector summary").click();
   await expect(page.getByText("Curated low-link lesson")).toBeVisible();
   await expect(page.getByText("Curated hint ladder")).toBeVisible();
 
@@ -259,11 +260,12 @@ test("problem details always offer a paper attempt and honest content labels", a
   await page.locator(".problem-row", { hasText: /^Coin Change/ }).first().locator(".problem-identity").click();
   await expect(page.getByRole("heading", { name: "Coin Change" })).toBeVisible();
   await expect(page.getByRole("button", { name: /paper attempt/ })).toBeVisible();
+  await page.locator(".problem-inspector summary").click();
   await expect(page.getByText("Generated practice scaffold")).toBeVisible();
   await expect(page.getByText("Generated hint ladder")).toBeVisible();
 
   // The lazy lesson is a staged scaffold that names its generator.
-  await page.getByRole("button", { name: /Lesson · generated/ }).click();
+  await page.getByRole("button", { name: "Lesson", exact: true }).click();
   await expect(page.getByText(/deterministic-skill-scaffold\/1.0/)).toBeVisible();
   for (const stage of ["Understand", "Derive", "Implement", "Test", "Reflect"]) {
     await expect(page.locator(".scaffold-stage h3", { hasText: stage })).toBeVisible();
@@ -280,7 +282,7 @@ test("both themes render the cockpit coherently", async ({ page }) => {
   await expect(page.locator(".session-bar")).toBeVisible();
   const ink = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   await page.locator(".theme-toggle").click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "paper");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   // The background animates over ~350ms; poll past the transition.
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
@@ -320,14 +322,14 @@ test("legacy hash routes redirect into the new IA", async ({ page }) => {
   await page.goto("/#evidence");
   await expect(page.getByRole("heading", { name: "What is actually breaking, with receipts." })).toBeVisible();
   await page.goto("/#queue");
-  await expect(page.getByRole("heading", { name: "The queue, without the pile-up." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Queue", exact: true })).toHaveAttribute("aria-current", "page");
 });
 
 test("SPA navigation moves focus to the new main view", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".now-title")).toBeVisible();
   await page.getByRole("button", { name: /^Library/ }).click();
-  await expect(page.getByRole("heading", { name: "Practice any problem." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
   await expect(page.locator("#main-content")).toBeFocused();
   await expect(page.locator("#main-content")).toHaveAttribute("tabindex", "-1");
 });

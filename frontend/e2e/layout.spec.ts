@@ -117,7 +117,7 @@ test.describe("mobile 390px", () => {
     const external = await page.locator(".external-button").first().boundingBox();
     expect(external!.height).toBeGreaterThanOrEqual(44);
     // Pattern metadata is retained on mobile rows.
-    await expect(page.locator(".problem-identity span").first()).toContainText(/·/);
+    await expect(page.locator(".problem-identity > span").nth(1)).toContainText(/·/);
   });
 
   test("Brain and Roadmap render without horizontal overflow of the shell", async ({ page }) => {

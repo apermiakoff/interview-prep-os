@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import type { Bootstrap, ProblemListResponse, ProblemSummary } from "../types";
+import "../collection-workspace.css";
 
 /*
- * One premium row per problem, search before status chrome, and a real
+ * One compact row per problem, search before status chrome, and a real
  * Practice action on every row. Ad hoc practice never touches the scheduled
  * assignment; the scheduled problem's row routes into its scheduled session.
  */
@@ -31,7 +32,7 @@ const SEGMENTS: Array<{ id: string; label: string; statuses: string[] }> = [
 const MORE_STATUSES = ["active", "upcoming", "stable", "blocked", "catalog", "archived"];
 
 function dueCopy(problem: ProblemSummary) {
-  if (problem.status === "active") return "Scheduled session";
+  if (problem.status === "active") return "Focused session";
   if (problem.status === "overdue") return `Overdue · ${problem.next_due}`;
   if (problem.status === "due") return "Review today";
   if (problem.next_due) return `Review ${problem.next_due}`;
@@ -185,18 +186,21 @@ export function ProblemCollectionView({
 
   return (
     <main className="view page-shell collection-view" id="main-content">
-      <header className="collection-heading">
-        <div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>
-        <div className="collection-total"><strong>{response?.total ?? "—"}</strong><span>{scope === "reviews" ? "review obligations" : "problems"}</span></div>
+      <header className="collection-command-header">
+        <div className="collection-command-title">
+          <h1>{eyebrow}</h1><span aria-hidden="true">/</span><strong>{title}</strong>
+          <span className="collection-result-count" role="status">{loading && !response ? "Loading" : `${response?.total ?? 0} result${response?.total === 1 ? "" : "s"}`}</span>
+        </div>
+        <p>{description}</p>
       </header>
 
-      <section className="collection-toolbar" aria-label="Problem filters">
-        <label className="search-field"><span aria-hidden="true">⌕</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search title, number, or slug…" aria-label="Search problems" /></label>
+      <section className={`collection-toolbar ${showTrackFilter ? "with-track-filter" : ""}`} aria-label="Problem filters">
+        <label className="search-field"><span aria-hidden="true">⌕</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search title, #, or slug" aria-label="Search problems" /></label>
         {showTrackFilter && <label><span>Track</span><select value={track} onChange={event => setTrack(event.target.value)} aria-label="Track filter"><option value="">All tracks</option>{(response?.tracks || []).map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}
         <label><span>Pattern</span><select value={pattern} onChange={event => setPattern(event.target.value)}><option value="">All patterns</option>{data.patterns.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
         <label><span>Difficulty</span><select value={difficulty} onChange={event => setDifficulty(event.target.value)}><option value="">Any difficulty</option><option>Easy</option><option>Medium</option><option>Hard</option></select></label>
         <label><span>Sort</span><select value={sort} onChange={event => setSort(event.target.value)}><option value="priority">Roadmap priority</option><option value="due">Next review</option><option value="recent">Recent activity</option><option value="evidence">Evidence count</option><option value="title">Title</option></select></label>
-        <button className="surprise-button" disabled={!response?.total || launching !== null} onClick={surprise} title="Random ad hoc practice from the current filters">⚡ Surprise me</button>
+        <button className="surprise-button" disabled={!response?.total || launching !== null} onClick={surprise} title="Start focused practice from a random filtered problem">⚡ Random practice</button>
       </section>
 
       <section className="status-strip" aria-label="Status filters">
@@ -224,17 +228,17 @@ export function ProblemCollectionView({
         {loading && response && <div className="table-refresh" role="status">Loading…</div>}
         <div className="problem-table-head">
           {allowBulk && <input type="checkbox" aria-label="Select page" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(response?.items.map(item => item.id) || []))} />}
-          <span>Problem</span><span>Evidence</span><span>State</span><span className="head-actions">Actions</span>
+          <span>Problem</span><span>Evidence</span><span>Status / schedule</span><span className="head-actions">Actions</span>
         </div>
         {error && <div className="empty-state">{error}</div>}
         {!error && loading && !response && <div className="collection-loading">Loading the library…</div>}
         {!error && response?.items.map(problem => <article className="problem-row" key={problem.id}>
           {allowBulk && <input type="checkbox" aria-label={`Select ${problem.title}`} checked={selected.has(problem.id)} disabled={problem.status === "active"} onChange={() => toggle(problem.id)} />}
           <button className="problem-identity" onClick={() => navigate(`problem/${problem.id}`)}>
-            <strong>{problem.title}</strong>
-            <span>{problem.leetcode_id ? `#${problem.leetcode_id}` : "personal"}{problem.difficulty ? ` · ${problem.difficulty}` : ""} · {problem.pattern_title || "Unclassified"}</span>
+            <span className="problem-title-line"><strong>{problem.title}</strong>{problem.difficulty && <i className={`difficulty-mark ${problem.difficulty.toLowerCase()}`}>{problem.difficulty}</i>}</span>
+            <span>{problem.leetcode_id ? `#${problem.leetcode_id}` : "Personal"} · {problem.pattern_title || "Unclassified"}</span>
           </button>
-          <span className="evidence-cell"><strong>{problem.evidence_count}</strong><small>{problem.independent_count} independent</small></span>
+          <span className="evidence-cell"><strong>{problem.evidence_count}</strong><small>{problem.independent_count} ind.</small></span>
           <span className="state-cell"><i className={`status-pill ${problem.status}`}>{STATUS_COPY[problem.status] || problem.status}</i><em>{dueCopy(problem)}</em></span>
           <span className="row-actions">
             <button className="practice-button" disabled={launching !== null} onClick={() => startPractice(problem)}>

@@ -1,0 +1,48 @@
+.semantic-viz { min-width: 0; max-width: 100%; overflow: hidden; border: 1px solid var(--border, #d7dbe2); border-radius: 18px; background: var(--surface, #fff); }
+.semantic-viz > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem 1.15rem .65rem; }
+.semantic-viz > header h3 { margin: .15rem 0 0; overflow-wrap: anywhere; }
+.semantic-viz .ai-provenance { flex: 0 1 auto; max-width: 45%; overflow-wrap: anywhere; }
+.graph-canvas { width: 100%; min-width: 0; padding: 0 .75rem; box-sizing: border-box; }
+.graph-svg { display: block; width: 100%; height: auto; max-height: min(56vh, 480px); border-radius: 14px; background: color-mix(in srgb, var(--surface, #fff) 92%, #64748b); }
+.graph-edge line { stroke: #94a3b8; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.graph-edge .edge-weight-bg { fill: var(--surface, #fff); stroke: #cbd5e1; }
+.graph-edge .edge-weight { fill: var(--text, #172033); font-size: 15px; font-weight: 750; }
+.graph-edge.is-comparing line { stroke: #d97706; stroke-width: 6; }
+.graph-edge.is-visited line { stroke: #7c3aed; stroke-width: 5; }
+.graph-edge.is-selected line { stroke: #2563eb; stroke-width: 6; }
+.graph-edge.is-accepted line { stroke: #16845b; stroke-width: 6; }
+.graph-edge.is-rejected line { stroke: #d14343; stroke-width: 5; stroke-dasharray: 8 6; }
+.graph-node circle { fill: var(--surface, #fff); stroke: #53657d; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.graph-node text { fill: var(--text, #172033); font-size: 16px; font-weight: 800; }
+.graph-node.is-selected circle { fill: #dbeafe; stroke: #2563eb; }
+.graph-node.is-visited circle { fill: #ede9fe; stroke: #7c3aed; }
+.viz-legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; padding: .7rem 1rem 0; font-size: .78rem; color: var(--muted, #596579); }
+.viz-legend span::before { content: ""; display: inline-block; width: 1.4rem; height: .22rem; margin-right: .35rem; vertical-align: .15rem; border-radius: 2px; background: #94a3b8; }
+.viz-legend .visit::before { background: #7c3aed; }.viz-legend .selected::before { background: #2563eb; }.viz-legend .compare::before { background: #d97706; }.viz-legend .accept::before { background: #16845b; }.viz-legend .reject::before { background: #d14343; }.viz-legend .exclude::before { background: repeating-linear-gradient(90deg, #64748b 0 4px, transparent 4px 7px); }
+.semantic-viz .viz-note { margin: .75rem 1rem; padding: .7rem .8rem; min-height: 1.4em; border-left: 3px solid #64748b; background: color-mix(in srgb, var(--surface, #fff) 88%, #64748b); overflow-wrap: anywhere; }
+.viz-inspectors { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; padding: 0 1rem .8rem; }
+.viz-inspector { min-width: 0; padding: .7rem; border: 1px solid var(--border, #d7dbe2); border-radius: 12px; }
+.viz-inspector h4 { margin: 0 0 .5rem; font-size: .78rem; letter-spacing: .05em; text-transform: uppercase; }
+.viz-inspector ul, .viz-inspector ol { margin: 0; padding-left: 1.25rem; }
+.viz-inspector li { margin: .25rem 0; overflow-wrap: anywhere; }
+.viz-inspector dl { margin: 0; }.viz-inspector dl div { display: flex; justify-content: space-between; gap: .5rem; }.viz-inspector dt { overflow-wrap: anywhere; }.viz-inspector dd { margin: 0; font-weight: 800; }
+.viz-inspector p { margin: 0; color: var(--muted, #596579); }
+.viz-phases li span { display: block; color: var(--muted, #596579); font-size: .78rem; }.viz-phases li.is-current { color: #2563eb; }.viz-phases li.is-current::marker { content: "●  "; }
+.viz-phases li.is-complete strong::after { content: " ✓"; color: #16845b; }
+.viz-playback { display: grid; grid-template-columns: auto auto auto minmax(8rem, 1fr) auto; align-items: center; gap: .45rem; padding: .8rem 1rem; border-top: 1px solid var(--border, #d7dbe2); }
+.viz-playback button { min-width: 2.75rem; min-height: 2.5rem; border: 1px solid var(--border, #cbd5e1); border-radius: 9px; background: var(--surface, #fff); color: inherit; cursor: pointer; }
+.viz-playback button:disabled { opacity: .42; cursor: default; }.viz-scrubber { display: flex; align-items: center; min-width: 0; gap: .55rem; font-size: .8rem; }.viz-scrubber input { width: 100%; min-width: 0; accent-color: #2563eb; }.viz-playback output { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.viz-key-help { margin: -.25rem 1rem .8rem; color: var(--muted, #596579); font-size: .75rem; }
+.semantic-viz:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+.viz-empty, .viz-fallback { margin: .75rem 1rem 1rem; }.viz-fallback { padding: .85rem; border: 1px solid #d8a431; border-radius: 10px; background: #fffbeb; color: #422006; }.viz-fallback p { margin: .25rem 0 0; }
+.generic-entities { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .5rem; margin: 0; padding: 0 1rem 1rem; list-style: none; }.generic-entities li { min-width: 0; padding: .65rem; border: 1px solid var(--border, #d7dbe2); border-radius: 9px; }.generic-entities span { display: block; color: var(--muted, #596579); font-size: .72rem; text-transform: uppercase; }.generic-entities strong { display: block; overflow-wrap: anywhere; }
+.generic-entities li.is-active { border-color: #2563eb; background: color-mix(in srgb, var(--surface, #fff) 88%, #2563eb); }.generic-entities output { display: block; margin-top: .25rem; font-weight: 800; overflow-wrap: anywhere; }
+@media (max-width: 680px) {
+  .semantic-viz > header { flex-direction: column; gap: .35rem; }.semantic-viz .ai-provenance { max-width: 100%; }
+  .graph-canvas { padding: 0 .35rem; }.viz-inspectors { grid-template-columns: 1fr; padding-inline: .65rem; }
+  .viz-playback { grid-template-columns: repeat(3, 1fr); padding-inline: .65rem; }.viz-playback button { width: 100%; }.viz-scrubber { grid-column: 1 / -1; }.viz-playback output { grid-column: 1 / -1; text-align: center; }
+  .viz-key-help { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .semantic-viz *, .semantic-viz *::before, .semantic-viz *::after { scroll-behavior: auto !important; transition-duration: .001ms !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
+}

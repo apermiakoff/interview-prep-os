@@ -39,7 +39,19 @@ def prompt(kind: str, snapshot: dict, request: dict) -> tuple[str, str]:
         "chat": "Answer the learner's message concisely while following the policy.",
         "lesson": "Create a lesson matching schema lesson@1.",
         "visualization": (
-            "Create a safe semantic visualization@1 envelope using only allowed operations."
+            "Create a safe semantic visualization@1 envelope. Use exactly one renderer from the "
+            "schema. All entity IDs must be unique and all event targets must exist. For graph "
+            "renderers, nodes may omit both x/y (automatic layout) or provide both as finite "
+            "numbers; edges require from/to node IDs and a finite numeric weight. graph-trace@1 "
+            "is generic: visit means visibly visited and select means selected; neither implies "
+            "MST acceptance, rejection, union, phase reset, or completion. Prefer graph-trace@2 "
+            "when algorithm-specific graph state is needed. In graph-trace@2, phase targets "
+            "exactly one frame and starts/reset that phase; accept and reject each target exactly "
+            "one edge; union targets exactly two distinct nodes; complete targets exactly one "
+            "frame and marks it complete without resetting. show/hide/visit/compare/update/select/"
+            "move remain generic and do not imply those explicit operations. Other renderers use "
+            "generic event playback; update changes displayed values and event targets are shown "
+            "as the active entities."
         ),
         "diagnosis": (
             "Create diagnosis@1; use only supplied evidence_id values and calibrated hypotheses."

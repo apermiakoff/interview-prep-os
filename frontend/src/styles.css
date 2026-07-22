@@ -10,25 +10,31 @@
 
 @layer base {
   :root {
-    --canvas: #0b0c0d; --canvas-soft: #111315; --surface: #15181a; --surface-2: #1a1e21;
-    --ink: #f1eee7; --muted: #a4a39d; --faint: #858783; --rule: rgba(241,238,231,.13); --rule-strong: rgba(241,238,231,.24);
-    --blue: #8ec9ff; --blue-ink: #07121b; --amber: #e8b86a; --coral: #ff766d; --mint: #78d6a3;
-    --display: "Iowan Old Style", "Palatino Linotype", Charter, Georgia, serif;
+    --color-bg: #0c0e12; --color-bg-subtle: #11141a; --color-surface: #161a21; --color-surface-raised: #1c212a;
+    --color-text: #eef1f5; --color-text-muted: #a3aab5; --color-text-faint: #777f8c;
+    --color-border: #292f39; --color-border-strong: #3c4552; --color-accent: #62a9ff; --color-on-accent: #07111f;
+    --color-warning: #e1aa52; --color-danger: #ef716b; --color-success: #63c590;
+    /* Compatibility aliases keep every existing view on the semantic system. */
+    --canvas: var(--color-bg); --canvas-soft: var(--color-bg-subtle); --surface: var(--color-surface); --surface-2: var(--color-surface-raised);
+    --ink: var(--color-text); --muted: var(--color-text-muted); --faint: var(--color-text-faint); --rule: var(--color-border); --rule-strong: var(--color-border-strong);
+    --blue: var(--color-accent); --blue-ink: var(--color-on-accent); --amber: var(--color-warning); --coral: var(--color-danger); --mint: var(--color-success);
+    --display: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-    --radius: 14px; --max: 1260px; --ease: cubic-bezier(.2,.8,.2,1);
+    --radius: 6px; --max: 1440px; --rail-width: 68px; --topbar-height: 52px; --ease: cubic-bezier(.2,.8,.2,1);
   }
-  :root[data-theme="paper"] {
-    --canvas: #eeeade; --canvas-soft: #e6e0d3; --surface: #f8f4ea; --surface-2: #ebe5d9;
-    --ink: #1a1b1a; --muted: #66655f; --faint: #74716a; --rule: rgba(26,27,26,.14); --rule-strong: rgba(26,27,26,.25);
-    --blue: #146ca4; --blue-ink: #f7fbff; --amber: #a5690f; --coral: #b83b35; --mint: #287c50;
+  :root[data-theme="light"] {
+    --color-bg: #f4f6f8; --color-bg-subtle: #edf0f3; --color-surface: #ffffff; --color-surface-raised: #e7ebef;
+    --color-text: #15191f; --color-text-muted: #58616d; --color-text-faint: #747e8a;
+    --color-border: #d7dce2; --color-border-strong: #b8c0ca; --color-accent: #146fbe; --color-on-accent: #ffffff;
+    --color-warning: #96620d; --color-danger: #b53d3a; --color-success: #21784b;
   }
   body { min-width: 320px; background: var(--canvas); color: var(--ink); font: 15px/1.55 var(--sans); transition: background .35s ease, color .35s ease; }
-  body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .2; background-image: radial-gradient(circle at 1px 1px, var(--rule-strong) 1px, transparent 0); background-size: 28px 28px; mask-image: linear-gradient(to bottom, #000, transparent 32%); }
+  body::before { content: none; }
   button, a { color: inherit; }
   button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
   h1, h2, h3, p { margin-top: 0; }
-  h1, h2 { font-family: var(--display); font-weight: 500; letter-spacing: -.025em; }
+  h1, h2 { font-family: var(--sans); font-weight: 650; letter-spacing: -.025em; }
   /* Headings inform; they no longer dominate the viewport. Decisions come first. */
   h1 { font-size: clamp(26px, 3vw, 40px); line-height: 1.08; }
   h2 { font-size: clamp(19px, 2.2vw, 27px); line-height: 1.12; }
@@ -502,4 +508,91 @@
     footer { flex-direction: column; gap: 8px; }
   }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+}
+
+/* Precision workstation shell. Unlayered so these shell invariants take
+   precedence over legacy view layout without changing view behavior. */
+:root { accent-color: var(--color-accent); }
+body { background: var(--color-bg); color: var(--color-text); }
+.app-shell { min-height: 100dvh; margin-left: var(--rail-width); }
+.activity-rail { position: fixed; inset: 0 auto 0 0; z-index: 30; width: var(--rail-width); display: grid; grid-template-rows: var(--topbar-height) 1fr auto; border-right: 1px solid var(--color-border); background: var(--color-bg-subtle); }
+.rail-brand { display: grid; place-items: center; border: 0; border-bottom: 1px solid var(--color-border); background: transparent; cursor: pointer; }
+.brand-mark { width: 30px; height: 30px; border-radius: 4px; background: var(--color-surface); }
+.activity-rail nav { display: flex; flex-direction: column; gap: 3px; padding: 10px 7px; }
+.activity-rail nav button { position: relative; min-height: 52px; display: grid; place-items: center; gap: 1px; padding: 5px 2px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--color-text-muted); cursor: pointer; }
+.activity-rail nav button:hover { background: var(--color-surface); color: var(--color-text); }
+.activity-rail nav button.active { border-color: var(--color-border); background: var(--color-surface-raised); color: var(--color-accent); box-shadow: inset 2px 0 var(--color-accent); }
+.nav-icon { font: 17px/1 var(--mono); }
+.nav-label { font: 650 9px/1.2 var(--sans); }
+.activity-rail .nav-count { position: absolute; top: 3px; right: 3px; margin: 0; }
+.activity-rail > .profile-button { justify-self: center; width: 40px; height: 40px; margin-bottom: 12px; border-radius: 4px; }
+.masthead { min-height: var(--topbar-height); height: var(--topbar-height); grid-template-columns: minmax(220px, 1fr) auto; gap: 20px; padding: 0 24px; border-bottom-color: var(--color-border); background: var(--color-bg-subtle); backdrop-filter: none; }
+.masthead .brand, .masthead > nav, .masthead-actions > .profile-button { display: none; }
+.context-title { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.context-title span { color: var(--color-text-faint); font: 10px var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+.context-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.masthead-actions { gap: 8px; }
+.private-badge { padding: 3px 7px; border-radius: 3px; }
+.theme-toggle { width: auto; height: 32px; gap: 7px; padding: 0 10px; justify-content: center; border-radius: 4px; background: var(--color-surface); color: var(--color-text-muted); font-size: 11px; }
+.theme-toggle span, .theme-toggle span:last-child { width: auto; height: auto; border: 0; border-radius: 0; background: none; }
+.page-shell { width: min(var(--max), calc(100% - 48px)); padding: 24px 0 64px; }
+footer, .library-tabs { width: min(var(--max), calc(100% - 48px)); }
+.session-bar { top: var(--topbar-height); padding-inline: max(24px, calc((100vw - var(--rail-width) - var(--max))/2)); }
+.section-heading { margin-bottom: 26px; }
+.section-heading h1 { margin-block: 7px 8px; }
+.now-grid { gap: 30px; }
+.solve-grid, .evidence-ledger, .profile-context, .detail-overview { gap: 36px; }
+
+/* Dense rectangular controls and low-chrome data surfaces. */
+.button, .practice-button, .external-button, .collection-pagination button, .bulk-bar button, .hint-reveal, .hint-confirm-actions button, .chip, .status-pill, .mode-tag, .confidence-badge, .placement-chips > span, .skill-chip, .heat-cell, .related-grid button, .outcome-option, .collection-toolbar input, .collection-toolbar select, .surprise-button, .status-more select, .fact-select select, .icon-button, .finish-close { border-radius: 4px; }
+.button { min-height: 36px; padding-inline: 13px; }
+.button.large { min-height: 42px; }
+.button:hover:not(:disabled) { transform: none; border-color: var(--color-accent); }
+
+@media (max-width: 759px) {
+  .session-bar .leetcode-cta.button,
+  .session-bar .finish-cta.button { min-height: 44px; }
+}
+.insight-card, .curve-card, .finish-sheet, .visualizer-shell { border-radius: 6px; }
+.insight-card, .curve-card { background: transparent; }
+.insight-card { padding: 16px 18px; }
+.curve-card { padding: 20px; }
+.problem-row { min-height: 54px; }
+.problem-table-head { min-height: 38px; background: var(--color-bg-subtle); }
+.problem-row:hover { background: var(--color-bg-subtle); }
+.library-tabs { margin-top: 14px; }
+.library-tabs button, .detail-tabs button { padding-block: 9px; }
+.collection-toolbar { padding-block: 12px; }
+.collection-toolbar input, .collection-toolbar select { height: 36px; }
+.status-strip > button { padding-block: 8px; }
+
+@media (max-width: 840px) {
+  :root { --topbar-height: 104px; }
+  .app-shell { margin-left: 0; padding-bottom: env(safe-area-inset-bottom); }
+  .activity-rail { display: none; }
+  .masthead { height: var(--topbar-height); min-height: var(--topbar-height); display: grid; grid-template-columns: 1fr auto; grid-template-rows: 50px 54px; gap: 0 10px; padding: 0 12px; background: var(--color-bg-subtle); }
+  .masthead .brand { display: flex; gap: 8px; }
+  .masthead .brand .brand-mark { display: grid; }
+  .brand strong { font-size: 12px; }
+  .brand em { display: block; font-size: 9px; }
+  .context-title, .private-badge { display: none; }
+  .masthead-actions { grid-column: 2; grid-row: 1; }
+  .masthead .theme-toggle { display: inline-flex; width: 38px; padding: 0; }
+  .theme-toggle span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .masthead-actions > .profile-button { display: block; width: 34px; height: 32px; border-radius: 4px; }
+  .masthead > nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-column: 1 / -1; grid-row: 2; width: 100%; overflow: visible; padding: 5px 0; border-top: 1px solid var(--color-border); gap: 3px; }
+  .masthead > nav button { position: relative; min-width: 0; min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 4px 2px; border: 1px solid transparent; border-radius: 4px; font-size: 11px; }
+  .masthead > nav button:hover, .masthead > nav button.active { border-color: var(--color-border); background: var(--color-surface); color: var(--color-accent); }
+  .masthead > nav .nav-count { min-width: 16px; height: 16px; margin-left: 0; }
+  .session-bar, .bulk-bar { top: var(--topbar-height); }
+  .page-shell, footer, .library-tabs { width: calc(100% - 28px); }
+}
+@media (max-width: 480px) {
+  .masthead { padding-inline: 8px; }
+  .masthead > nav button { flex-direction: column; gap: 1px; font-size: 10px; }
+  .masthead > nav button > span:first-child { font: 14px/1 var(--mono); }
+  .masthead > nav .nav-count { position: absolute; top: 2px; right: 3px; }
+  .page-shell { padding-top: 18px; }
+  .collection-toolbar { grid-template-columns: 1fr; }
+  .collection-toolbar .search-field { grid-column: 1; }
 }

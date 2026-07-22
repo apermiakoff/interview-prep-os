@@ -1,0 +1,233 @@
+/* Compact problem workstation hierarchy. Imported by ProblemDetailView so it
+   stays isolated from the global shell and visualization renderer. */
+.problem-detail {
+  min-width: 0;
+  overflow-x: clip;
+}
+
+.problem-workspace-header {
+  display: grid;
+  gap: 8px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.problem-workspace-titlebar {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "back back"
+    "kicker actions"
+    "title actions"
+    "placements actions";
+  column-gap: 24px;
+  align-items: center;
+}
+
+.problem-workspace-titlebar .back-link { grid-area: back; width: max-content; margin-bottom: 5px; }
+.problem-workspace-titlebar .problem-kicker { grid-area: kicker; }
+.problem-workspace-titlebar h1 {
+  grid-area: title;
+  min-width: 0;
+  margin: 3px 0 5px;
+  font-size: clamp(27px, 3.2vw, 42px);
+  line-height: 1.02;
+  overflow-wrap: anywhere;
+}
+.problem-workspace-titlebar .placement-chips {
+  grid-area: placements;
+  min-width: 0;
+  margin: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.problem-workspace-titlebar .placement-chips > span { flex: 0 0 auto; padding-block: 3px; }
+.problem-workspace-actions {
+  grid-area: actions;
+  justify-content: flex-end;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.problem-inspector {
+  min-width: 0;
+  border: 1px solid var(--rule);
+  background: var(--color-bg-subtle, var(--surface));
+}
+.problem-inspector summary,
+.artifact-generation summary {
+  min-height: 34px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  list-style-position: inside;
+}
+.problem-inspector summary span { color: var(--ink); font-weight: 650; }
+.problem-inspector summary strong { margin-left: auto; color: var(--faint); font: 10px var(--mono); font-weight: 500; }
+.problem-inspector .detail-facts {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-top: 1px solid var(--rule);
+}
+.problem-inspector .detail-facts div { min-width: 0; padding: 9px 10px; border-top: 0; border-right: 1px solid var(--rule); }
+.problem-inspector .detail-facts div:last-child { border-right: 0; }
+.problem-inspector .detail-facts strong { overflow-wrap: anywhere; }
+.problem-workspace-header > .extra-practice-note,
+.problem-workspace-header > .form-message { margin: 0; }
+
+.problem-workspace-nav {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.problem-workspace-nav .detail-tabs { min-width: 0; border-bottom: 0; }
+.problem-workspace-nav .detail-tabs button { min-height: 40px; padding: 8px 13px; white-space: nowrap; }
+.problem-workspace-nav .tool-tabs { justify-content: flex-end; }
+.problem-workspace-nav .tool-tabs > span {
+  display: flex;
+  align-items: center;
+  padding: 0 9px;
+  color: var(--faint);
+  font: 9px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.history-switcher {
+  display: flex;
+  gap: 6px;
+  padding-top: 16px;
+}
+.history-switcher button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.history-switcher button.active { border-color: var(--blue); color: var(--ink); background: var(--surface); }
+.history-switcher span { margin-left: 5px; color: var(--faint); font: 10px var(--mono); }
+.history-switcher + .detail-ledger { padding-top: 14px; }
+
+/* Once generated content exists, its settings and audit trail yield the
+   viewport to the artifact. The disclosure keeps regeneration discoverable. */
+.problem-detail .workspace-artifact-panel {
+  margin-top: 12px;
+  padding: 12px;
+  overflow: hidden;
+}
+.workspace-artifact-panel > header { align-items: center; }
+.workspace-artifact-panel > header h2 { margin: 2px 0 0; font-size: 22px; }
+.workspace-artifact-panel > header > label { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.workspace-artifact-panel > header select { width: auto; padding-block: 6px; }
+.artifact-generation { margin-top: 7px; border: 1px solid var(--color-border, var(--rule)); }
+.artifact-generation summary { min-height: 32px; padding-block: 5px; }
+.artifact-generation .artifact-controls { margin: 0; padding: 10px; border-top: 1px solid var(--color-border, var(--rule)); }
+.artifact-generation .artifact-meta { margin: 0; padding: 0 10px 10px; overflow-wrap: anywhere; }
+.workspace-artifact-panel.has-artifact > .semantic-viz { margin-top: 8px; }
+
+@media (max-width: 900px) {
+  .problem-workspace-titlebar {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "back" "kicker" "title" "placements" "actions";
+  }
+  .problem-workspace-actions { justify-content: flex-start; margin-top: 4px; }
+  .problem-workspace-nav { display: block; }
+  .problem-workspace-nav .detail-tabs { width: 100%; }
+  .problem-workspace-nav .tool-tabs { border-top: 1px solid var(--rule); justify-content: flex-start; }
+  .problem-workspace-nav .tool-tabs button { flex: 1 0 auto; }
+  .problem-inspector .detail-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .problem-inspector .detail-facts div { border-bottom: 1px solid var(--rule); }
+}
+
+@media (max-width: 759px) {
+  .problem-detail.page-shell { padding-top: 12px; }
+  .problem-workspace-header { gap: 6px; padding-bottom: 7px; }
+  .problem-workspace-titlebar h1 { font-size: 27px; }
+  .problem-workspace-titlebar .back-link { min-height: 44px; display: inline-flex; align-items: center; margin-bottom: 1px; }
+  .problem-workspace-titlebar .placement-chips { margin-bottom: 2px; }
+  .problem-workspace-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px;
+  }
+  .problem-workspace-actions .button { min-width: 0; min-height: 44px; white-space: normal; }
+  .problem-workspace-actions .text-link { min-height: 44px; display: inline-flex; align-items: center; }
+  .problem-inspector summary,
+  .artifact-generation summary { min-height: 44px; }
+  .problem-inspector summary strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .problem-inspector .detail-facts { grid-template-columns: 1fr; }
+  .problem-inspector .detail-facts div { border-right: 0; }
+  .problem-workspace-nav { margin-inline: -1px; overflow: hidden; }
+  .problem-workspace-nav .detail-tabs { overflow-x: auto; }
+  .problem-workspace-nav .detail-tabs button { min-height: 44px; padding-inline: 12px; }
+  .problem-workspace-nav .tool-tabs > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .problem-workspace-nav .tool-tabs button { min-width: max-content; }
+  .history-switcher button { min-height: 44px; }
+
+  /* Tool views are work surfaces. Keep only a compact identity strip above
+     them on phones instead of repeating the full problem dossier. */
+  .problem-detail.focused-tool .problem-workspace-header {
+    padding-bottom: 5px;
+  }
+  .problem-detail.focused-tool .problem-workspace-titlebar {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "back title";
+    gap: 8px;
+  }
+  .problem-detail.focused-tool .problem-workspace-titlebar .back-link {
+    min-height: 36px;
+    margin: 0;
+  }
+  .problem-detail.focused-tool .problem-workspace-titlebar h1 {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .problem-detail.focused-tool .problem-kicker,
+  .problem-detail.focused-tool .placement-chips,
+  .problem-detail.focused-tool .problem-workspace-actions,
+  .problem-detail.focused-tool .problem-inspector,
+  .problem-detail.focused-tool .extra-practice-note,
+  .problem-detail.focused-tool .form-message,
+  .problem-detail.focused-tool .mode-tabs {
+    display: none;
+  }
+  .problem-detail.focused-tool .problem-workspace-nav .tool-tabs {
+    border-top: 0;
+  }
+  .problem-detail.focused-tool .problem-workspace-nav .tool-tabs button {
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .workspace-artifact-panel { margin: 8px 0 0; padding: 9px; }
+  .workspace-artifact-panel > header { gap: 8px; }
+  .workspace-artifact-panel > header h2 { font-size: 20px; }
+  .workspace-artifact-panel > header select,
+  .artifact-generation input,
+  .artifact-generation button { min-height: 44px; }
+  .workspace-artifact-panel .viz-playback button { min-height: 44px; }
+  .artifact-generation .artifact-controls { gap: 8px; }
+}
+
+@media (max-width: 430px) {
+  .problem-workspace-actions { grid-template-columns: 1fr; }
+  .problem-workspace-actions .text-link { width: max-content; }
+  .problem-inspector summary strong { display: none; }
+  .workspace-artifact-panel > header { align-items: stretch; flex-direction: column; }
+  .workspace-artifact-panel > header > label { justify-content: space-between; }
+}

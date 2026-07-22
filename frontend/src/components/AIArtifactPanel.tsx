@@ -16,12 +16,16 @@ export function AIArtifactPanel({ problemId, kind }: { problemId: number; kind: 
     catch (reason) { setError(aiErrorMessage(reason)); } finally { setBusy(false); }
   };
   const artifact = artifacts[selected];
-  return <section className="ai-artifact-panel">
+  return <section className={`ai-artifact-panel workspace-artifact-panel ${artifact ? "has-artifact" : "is-empty"}`}>
     <header><div><span className="eyebrow">Community AI · generated artifact</span><h2>{kind === "lesson" ? "Generated lesson" : "Visualization"}</h2></div>{artifacts.length > 1 && <label>Version<select value={selected} onChange={event => setSelected(Number(event.target.value))}>{artifacts.map((item, index) => <option value={index} key={item.id}>v{item.version} · {new Date(item.created_at).toLocaleDateString()}</option>)}</select></label>}</header>
     {status?.status === "disabled" && <div className="ai-empty"><p>Generation is disabled.</p><a href="#settings/ai">Open AI Setup →</a></div>}
-    {status?.status === "ready" && <div className="artifact-controls"><label>Optional instruction<input value={instruction} maxLength={2000} onChange={event => { setInstruction(event.target.value); pending.current = null; }} placeholder={kind === "lesson" ? "Emphasize recognition signals" : "Trace a small counterexample"} /></label><button className="button primary" disabled={busy} onClick={() => void generate()}>{busy ? "Generating…" : artifact ? "Regenerate" : "Generate"}</button></div>}
+    {status?.status === "ready" && <details className="artifact-generation" open={!artifact}>
+      <summary>{artifact ? "Generation settings & provenance" : "Generation settings"}</summary>
+      <div className="artifact-controls"><label>Optional instruction<input value={instruction} maxLength={2000} onChange={event => { setInstruction(event.target.value); pending.current = null; }} placeholder={kind === "lesson" ? "Emphasize recognition signals" : "Trace a small counterexample"} /></label><button className="button primary" disabled={busy} onClick={() => void generate()}>{busy ? "Generating…" : artifact ? "Regenerate" : "Generate"}</button></div>
+      {artifact && <p className="artifact-meta">AI generated · v{artifact.version} · {artifact.provider}/{artifact.model} · prompt {artifact.prompt_version} · {new Date(artifact.created_at).toLocaleString()}</p>}
+    </details>}
     {error && <div className="ai-error" role="alert"><p>{error}</p>{pending.current && <button className="button" onClick={() => void generate()}>Retry same generation</button>}</div>}
-    {artifact && <><p className="artifact-meta">AI generated · v{artifact.version} · {artifact.provider}/{artifact.model} · prompt {artifact.prompt_version} · {new Date(artifact.created_at).toLocaleString()}</p>{kind === "lesson" ? <Lesson content={artifact.content as LessonArtifact} /> : <ArtifactVisualization artifact={artifact.content as VisualizationArtifact} />}</>}
+    {artifact && (kind === "lesson" ? <Lesson content={artifact.content as LessonArtifact} /> : <ArtifactVisualization artifact={artifact.content as VisualizationArtifact} />)}
     {status?.status === "ready" && !artifact && !busy && <div className="ai-empty">No generated {kind} yet. Existing curated material remains separate.</div>}
   </section>;
 }

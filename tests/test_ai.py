@@ -140,6 +140,108 @@ def test_artifact_validation_and_confidence_cap():
         diagnosis.validated_for(set())
 
 
+def test_graph_renderer_versions_and_prompt_publish_truthful_operation_contracts():
+    v1 = VisualizationArtifact.model_validate(
+        {
+            "schema_version": "visualization@1",
+            "renderer": "graph-trace@1",
+            "title": "DFS",
+            "entities": [
+                {"id": "a", "label": "A", "kind": "node"},
+                {"id": "b", "label": "B", "kind": "node"},
+                {
+                    "id": "edge",
+                    "label": "A-B",
+                    "kind": "edge",
+                    "data": {"from": "a", "to": "b", "weight": 1},
+                },
+            ],
+            "events": [
+                {"op": "visit", "targets": ["a", "edge"]},
+                {"op": "select", "targets": ["edge"]},
+            ],
+        }
+    )
+    assert [event.op for event in v1.events] == ["visit", "select"]
+    with pytest.raises(ValidationError, match="explicit graph operations"):
+        VisualizationArtifact.model_validate(
+            {**v1.model_dump(), "events": [{"op": "accept", "targets": ["edge"]}]}
+        )
+
+    _, user = prompt("visualization", {"problem": {"title": "Graph"}}, {})
+    task = json.loads(user)["task"]
+    assert "graph-trace@1 is generic" in task
+    assert "phase targets exactly one frame" in task
+    assert "union targets exactly two distinct nodes" in task
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda payload: payload["entities"].append(payload["entities"][0].copy()),
+        lambda payload: payload["entities"][0].update(data={"x": 1}),
+        lambda payload: payload["entities"][0].update(data={"x": float("inf"), "y": 1}),
+        lambda payload: payload["entities"][2]["data"].pop("from"),
+        lambda payload: payload["entities"][2]["data"].update(to="missing"),
+        lambda payload: payload["entities"][2]["data"].update(weight=float("nan")),
+        lambda payload: payload["events"].append({"op": "phase", "targets": ["edge"]}),
+        lambda payload: payload["events"].append({"op": "accept", "targets": ["a"]}),
+        lambda payload: payload["events"].append({"op": "union", "targets": ["a"]}),
+        lambda payload: payload["events"].append({"op": "complete", "targets": ["a"]}),
+    ],
+)
+def test_graph_entity_and_explicit_operation_conventions_are_rejected(mutation):
+    payload = {
+        "schema_version": "visualization@1",
+        "renderer": "graph-trace@2",
+        "title": "MST",
+        "entities": [
+            {"id": "a", "label": "A", "kind": "node", "data": {"x": 0, "y": 0}},
+            {"id": "b", "label": "B", "kind": "node"},
+            {
+                "id": "edge",
+                "label": "A-B",
+                "kind": "edge",
+                "data": {"from": "a", "to": "b", "weight": 1},
+            },
+            {"id": "phase", "label": "Baseline", "kind": "frame"},
+        ],
+        "events": [],
+    }
+    mutation(payload)
+    with pytest.raises(ValidationError):
+        VisualizationArtifact.model_validate(payload)
+
+
+def test_graph_trace_v2_explicit_operations_validate():
+    artifact = VisualizationArtifact.model_validate(
+        {
+            "schema_version": "visualization@1",
+            "renderer": "graph-trace@2",
+            "title": "MST",
+            "entities": [
+                {"id": "a", "label": "A", "kind": "node"},
+                {"id": "b", "label": "B", "kind": "node"},
+                {
+                    "id": "edge",
+                    "label": "A-B",
+                    "kind": "edge",
+                    "data": {"from": "a", "to": "b", "weight": 1},
+                },
+                {"id": "baseline", "label": "Baseline", "kind": "frame"},
+            ],
+            "events": [
+                {"op": "phase", "targets": ["baseline"]},
+                {"op": "accept", "targets": ["edge"]},
+                {"op": "union", "targets": ["a", "b"]},
+                {"op": "reject", "targets": ["edge"]},
+                {"op": "complete", "targets": ["baseline"]},
+            ],
+        }
+    )
+    assert artifact.renderer == "graph-trace@2"
+
+
 def test_fake_worker_chat_session_assistance_sse_and_budget(ai_config, db_path, monkeypatch):
     session = start_scheduled_session("assignment-1", SessionStart(), db_path)["session"]
     with TestClient(app) as client:

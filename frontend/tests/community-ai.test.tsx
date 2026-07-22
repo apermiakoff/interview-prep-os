@@ -4,6 +4,7 @@ import { ArtifactVisualization } from "../src/components/ArtifactVisualization";
 import { DiagnosisPanel } from "../src/components/DiagnosisPanel";
 import { AISetupView } from "../src/views/AISetupView";
 import { ProblemDetailView } from "../src/views/ProblemDetailView";
+import { AIArtifactPanel } from "../src/components/AIArtifactPanel";
 import type { Bootstrap } from "../src/types";
 
 const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
@@ -33,6 +34,43 @@ test("problem AI controls are unavailable during its open practice session", asy
   expect(screen.queryByRole("button", { name: "Generated lesson" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /Use session Coach/ }));
   expect(navigate).toHaveBeenCalledWith("solve/session-exact");
+});
+
+test("problem workspace groups history and tools behind a compact inspector", async () => {
+  vi.spyOn(globalThis, "fetch").mockImplementation(() => json({
+    problem: { id: 10, slug: "compact", title: "Compact Workspace", recognition_signals: [], queue_state: "learning" },
+    attempts: [], reviews: [], memory: null, active_assignment: null,
+    content: { lesson: { provenance: "unavailable", label: "No lesson" }, hints: { provenance: "unavailable", label: "No hints" } },
+    can_start_ad_hoc: true, scheduled_assignment: null, open_practice_session: null,
+    skills: [], prerequisites: [], related_problems: [], placements: [],
+  }));
+  render(<ProblemDetailView problemId={10} data={{ active_assignment: null } as unknown as Bootstrap} navigate={vi.fn()} />);
+  expect(await screen.findByRole("heading", { name: "Compact Workspace" })).toBeInTheDocument();
+  expect(screen.getByText("Problem inspector").closest("details")).not.toHaveAttribute("open");
+  expect(screen.getByRole("navigation", { name: "Problem modes" })).toBeInTheDocument();
+  expect(screen.getByRole("navigation", { name: "Problem tools" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "History" }));
+  expect(screen.getByRole("navigation", { name: "History view" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /Reviews/ }));
+  expect(screen.getByText("No review has been scheduled yet.")).toBeInTheDocument();
+});
+
+test("generated artifact collapses generation controls and renders content immediately", async () => {
+  vi.spyOn(globalThis, "fetch").mockImplementation(input => {
+    const url = String(input);
+    if (url.endsWith("/status")) return json({ status: "ready", enabled: true, provider: "ollama", model: "m" });
+    if (url.includes("/artifacts?kind=visualization")) return json([{
+      id: "artifact-1", scope: "problem", scope_id: "11", kind: "visualization", version: 1,
+      schema_version: "visualization@1", run_id: "run-1", context_snapshot_id: "snapshot-1",
+      prompt_version: "viz-v1", provider: "ollama", model: "m", created_at: "2026-01-01T00:00:00Z",
+      content: { schema_version: "visualization@1", renderer: "state-trace@1", title: "Ready trace", entities: [{ id: "a", label: "A", kind: "item", data: {} }], events: [] },
+    }]);
+    throw new Error(`unexpected ${url}`);
+  });
+  render(<AIArtifactPanel problemId={11} kind="visualization" />);
+  expect(await screen.findByRole("region", { name: "Ready trace visualization" })).toBeInTheDocument();
+  expect(screen.getByText("Generation settings & provenance").closest("details")).not.toHaveAttribute("open");
+  expect(screen.getByRole("button", { name: "Regenerate" })).toBeInTheDocument();
 });
 
 test("enabled coach retries with the same idempotency key", async () => {

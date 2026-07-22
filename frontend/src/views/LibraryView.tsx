@@ -10,16 +10,16 @@ const SUBVIEWS = [
 export function LibraryView({ data, navigate, sub }: { data: Bootstrap; navigate: (route: string) => void; sub: "all" | "queue" | "reviews" }) {
   const copy = {
     all: {
-      title: "Practice any problem.",
-      description: "Search by title, number, or slug and start a paper session on anything — scheduled work stays scheduled.",
+      title: "Problems",
+      description: "Search the catalog and start a focused practice session.",
     },
     queue: {
-      title: "The queue, without the pile-up.",
-      description: "Maintain learning obligations in bulk. State changes never rewrite evidence.",
+      title: "Queue",
+      description: "Manage practice obligations in bulk without changing evidence.",
     },
     reviews: {
-      title: "Reviews ordered by evidence.",
-      description: "Overdue and upcoming reconstruction work, separated from the backlog.",
+      title: "Reviews",
+      description: "Overdue and upcoming reconstruction work ordered by evidence.",
     },
   }[sub];
 
@@ -35,7 +35,7 @@ export function LibraryView({ data, navigate, sub }: { data: Bootstrap; navigate
         data={data}
         navigate={navigate}
         scope={sub === "all" ? "all" : sub}
-        eyebrow={sub === "reviews" ? "Adaptive retrieval inbox" : "Problem library"}
+        eyebrow="Library"
         title={copy.title}
         description={copy.description}
         allowBulk={sub === "queue"}
