@@ -6,7 +6,8 @@ __pycache__
 data
 .env
 .env.*
-.community-secrets
+secrets/
+.community-secrets/
 community-backup*.zip
 .git
 .hermes

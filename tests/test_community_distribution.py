@@ -5,6 +5,7 @@ import stat
 import subprocess
 import sys
 import zipfile
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,6 +15,14 @@ from app.community import bootstrap_community
 from app.db import connect, init_db, transaction
 from app.main import app
 from scripts.community_data import create_backup, restore_backup
+
+
+def test_docker_context_excludes_all_secret_bearing_paths():
+    rules = Path(".dockerignore").read_text(encoding="utf-8").splitlines()
+    assert "secrets/" in rules
+    assert ".community-secrets/" in rules
+    assert ".env" in rules
+    assert ".env.*" in rules
 
 
 def test_clean_community_bootstrap_has_catalog_without_evidence(tmp_path):
