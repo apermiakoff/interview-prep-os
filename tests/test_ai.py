@@ -53,6 +53,9 @@ def test_ai_migration_is_idempotent(tmp_path):
 
 def test_disabled_and_masked_config(db_path, tmp_path, monkeypatch):
     monkeypatch.setenv("INTERVIEW_PREP_AI_ENABLED", "false")
+    monkeypatch.setenv(
+        "INTERVIEW_PREP_AI_BASE_URL", "http://unresolvable-disabled-provider.invalid:11434"
+    )
     monkeypatch.setenv("INTERVIEW_PREP_AI_API_KEY", "never-return-this")
     monkeypatch.setenv("INTERVIEW_PREP_AI_DB", str(tmp_path / "ai.db"))
     with TestClient(app) as client:

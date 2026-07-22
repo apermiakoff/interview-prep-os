@@ -143,13 +143,19 @@ class AIConfig:
             for item in os.getenv("INTERVIEW_PREP_AI_ALLOWED_BASE_HOSTS", "").split(",")
             if item.strip()
         )
-        base_url = validate_base_url(
-            raw_url,
-            provider=provider,
-            allow_private=allow_private,
-            allowed_hosts=allowed_hosts,
-        )
-        api_key = _secret("INTERVIEW_PREP_AI_API_KEY")
+        if enabled:
+            base_url = validate_base_url(
+                raw_url,
+                provider=provider,
+                allow_private=allow_private,
+                allowed_hosts=allowed_hosts,
+            )
+            api_key = _secret("INTERVIEW_PREP_AI_API_KEY")
+        else:
+            # Disabled mode must be observable even when a future provider hostname is
+            # unavailable. It performs no DNS lookup and does not read credential files.
+            base_url = raw_url.rstrip("/")
+            api_key = None
         if enabled and provider in {"openai", "anthropic", "openai_compatible"} and not api_key:
             raise AIConfigError("AI provider API key is required")
         values = {
