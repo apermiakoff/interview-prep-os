@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -91,6 +92,24 @@ class SessionAttemptCreate(BaseModel):
 
 class NotesUpdate(BaseModel):
     content: str = Field(max_length=20_000)
+
+
+class LearnerSettingsUpdate(BaseModel):
+    display_name: str = Field(default="", max_length=100)
+    interview_target: str = Field(default="", max_length=300)
+    weekly_hours: int = Field(default=5, ge=1, le=80)
+    timezone: str = Field(default="UTC", max_length=100)
+    weak_areas: list[str] = Field(default_factory=list, max_length=20)
+    preferred_language: str = Field(default="", max_length=50)
+
+    @field_validator("timezone")
+    @classmethod
+    def valid_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError("unknown IANA timezone") from exc
+        return value
 
 
 class QueueBulkUpdate(BaseModel):

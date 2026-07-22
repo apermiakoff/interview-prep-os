@@ -1,0 +1,6 @@
+# Restricted/private maintainer material must never enter community source archives.
+curricula/outtalent.json export-ignore
+compose.yaml export-ignore
+docs/operations.md export-ignore
+scripts/deploy.py export-ignore
+scripts/import_legacy.py export-ignore

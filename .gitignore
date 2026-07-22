@@ -13,6 +13,8 @@ data/
 .env
 .env.*
 !.env.example
+.community-secrets/
+community-backup*.zip
 test-results/
 playwright-report/
 artifacts/

@@ -424,10 +424,21 @@ export interface LearningRoadmap {
   }>;
 }
 
+export interface LearnerSettings {
+  display_name: string;
+  interview_target: string;
+  weekly_hours: number;
+  timezone: string;
+  weak_areas: string[];
+  preferred_language: string;
+  updated_at?: string;
+}
+
 export interface Bootstrap {
   generated_at: string;
   today: string;
   timezone: string;
+  learner: LearnerSettings | null;
   active_assignment: Assignment | null;
   attempts: Attempt[];
   reviews: Review[];

@@ -1,5 +1,6 @@
 import type {
   Bootstrap,
+  LearnerSettings,
   HintRevealResponse,
   LearningProfile,
   LearningRoadmap,
@@ -31,6 +32,10 @@ export async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   bootstrap: () => request<Bootstrap>("/api/bootstrap"),
+  learnerSettings: () => request<LearnerSettings | null>("/api/learner-settings"),
+  saveLearnerSettings: (value: LearnerSettings) => request<LearnerSettings>("/api/learner-settings", {
+    method: "PUT", body: JSON.stringify(value),
+  }),
   learningToday: () => request<LearningToday>("/api/learning/today"),
   learningProfile: () => request<LearningProfile>("/api/learning/profile"),
   learningRoadmap: () => request<LearningRoadmap>("/api/learning/roadmap"),

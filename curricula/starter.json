@@ -1,0 +1,33 @@
+{
+  "curriculum": {
+    "id": "community-starter",
+    "title": "Community interview starter",
+    "description": "A generic starter set spanning common interview techniques. Catalog metadata only."
+  },
+  "provenance": {
+    "source": "LeetCode public catalog metadata",
+    "license_note": "IDs, titles, slugs, difficulty labels, and editorial skill mappings only; no problem statements are included."
+  },
+  "problems": [
+    {"id": 1, "title": "Two Sum", "slug": "two-sum", "difficulty": "Easy", "skill": "mixed/design"},
+    {"id": 20, "title": "Valid Parentheses", "slug": "valid-parentheses", "difficulty": "Easy", "skill": "mixed/design"},
+    {"id": 21, "title": "Merge Two Sorted Lists", "slug": "merge-two-sorted-lists", "difficulty": "Easy", "skill": "mixed/design"},
+    {"id": 53, "title": "Maximum Subarray", "slug": "maximum-subarray", "difficulty": "Medium", "skill": "dp/one-dimensional"},
+    {"id": 70, "title": "Climbing Stairs", "slug": "climbing-stairs", "difficulty": "Easy", "skill": "dp/one-dimensional"},
+    {"id": 102, "title": "Binary Tree Level Order Traversal", "slug": "binary-tree-level-order-traversal", "difficulty": "Medium", "skill": "trie/trees"},
+    {"id": 121, "title": "Best Time to Buy and Sell Stock", "slug": "best-time-to-buy-and-sell-stock", "difficulty": "Easy", "skill": "greedy/heaps"},
+    {"id": 133, "title": "Clone Graph", "slug": "clone-graph", "difficulty": "Medium", "skill": "graph/traversal"},
+    {"id": 153, "title": "Find Minimum in Rotated Sorted Array", "slug": "find-minimum-in-rotated-sorted-array", "difficulty": "Medium", "skill": "search/monotonic"},
+    {"id": 200, "title": "Number of Islands", "slug": "number-of-islands", "difficulty": "Medium", "skill": "graph/traversal"},
+    {"id": 206, "title": "Reverse Linked List", "slug": "reverse-linked-list", "difficulty": "Easy", "skill": "mixed/design"},
+    {"id": 207, "title": "Course Schedule", "slug": "course-schedule", "difficulty": "Medium", "skill": "graph/modeling"},
+    {"id": 215, "title": "Kth Largest Element in an Array", "slug": "kth-largest-element-in-an-array", "difficulty": "Medium", "skill": "greedy/heaps"},
+    {"id": 226, "title": "Invert Binary Tree", "slug": "invert-binary-tree", "difficulty": "Easy", "skill": "trie/trees"},
+    {"id": 238, "title": "Product of Array Except Self", "slug": "product-of-array-except-self", "difficulty": "Medium", "skill": "mixed/design"},
+    {"id": 300, "title": "Longest Increasing Subsequence", "slug": "longest-increasing-subsequence", "difficulty": "Medium", "skill": "dp/one-dimensional"},
+    {"id": 322, "title": "Coin Change", "slug": "coin-change", "difficulty": "Medium", "skill": "dp/one-dimensional"},
+    {"id": 347, "title": "Top K Frequent Elements", "slug": "top-k-frequent-elements", "difficulty": "Medium", "skill": "greedy/heaps"},
+    {"id": 417, "title": "Pacific Atlantic Water Flow", "slug": "pacific-atlantic-water-flow", "difficulty": "Medium", "skill": "graph/traversal"},
+    {"id": 704, "title": "Binary Search", "slug": "binary-search", "difficulty": "Easy", "skill": "search/monotonic"}
+  ]
+}

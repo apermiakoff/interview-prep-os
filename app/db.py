@@ -302,6 +302,19 @@ ALTER TABLE practice_sessions ADD COLUMN ai_assisted INTEGER NOT NULL DEFAULT 0
     CHECK(ai_assisted IN (0, 1));
 """
 
+COMMUNITY_SETTINGS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS learner_settings (
+    id INTEGER PRIMARY KEY CHECK(id = 1),
+    display_name TEXT NOT NULL DEFAULT '',
+    interview_target TEXT NOT NULL DEFAULT '',
+    weekly_hours INTEGER NOT NULL DEFAULT 5 CHECK(weekly_hours BETWEEN 1 AND 80),
+    timezone TEXT NOT NULL DEFAULT 'UTC',
+    weak_areas_json TEXT NOT NULL DEFAULT '[]',
+    preferred_language TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL
+);
+"""
+
 
 # Hierarchical error taxonomy. Top-level ids intentionally match the legacy
 # failure_tag vocabulary ('bugs' maps to 'testing') so the backfill is honest.
@@ -392,6 +405,10 @@ def _migrate_ai_assistance(connection: sqlite3.Connection) -> None:
     _begin_schema_migration(connection, AI_ASSISTANCE_SCHEMA)
 
 
+def _migrate_community_settings(connection: sqlite3.Connection) -> None:
+    _begin_schema_migration(connection, COMMUNITY_SETTINGS_SCHEMA)
+
+
 def seed_error_types(connection: sqlite3.Connection) -> None:
     for error_id, title, parent, description in ERROR_TYPE_SEED:
         connection.execute(
@@ -466,6 +483,7 @@ MIGRATIONS: list[tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (5, "practice sessions + session hint events", _migrate_sessions),
     (6, "idempotency ownership + scheduled-session consistency guards", _migrate_integrity),
     (7, "AI coaching assistance marker", _migrate_ai_assistance),
+    (8, "local learner settings", _migrate_community_settings),
 ]
 
 LATEST_VERSION = MIGRATIONS[-1][0]

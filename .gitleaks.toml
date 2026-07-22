@@ -1,0 +1,9 @@
+title = "Interview Prep OS secret scanning"
+
+[allowlist]
+description = "Known non-secret idempotency fixture values"
+regexTarget = "secret"
+stopwords = [
+  "exhausted-final-1",
+  "exhausted-final-2",
+]

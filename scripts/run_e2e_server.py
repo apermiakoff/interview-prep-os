@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Hermetic Playwright server: serve the new build against a disposable copy of the
-live database so end-to-end runs never touch real evidence.
+"""Hermetic Playwright server backed by deterministic synthetic evidence.
 
-- Copies INTERVIEW_PREP_E2E_SOURCE (default data/interview-prep.db) to
-  data/e2e/interview-prep-e2e.db, or starts empty if the source is missing.
-- Applies migrations, seeds content, imports the Outtalent curriculum.
-- Guarantees an active assignment so the Solve-room flows are testable.
+- Starts empty unless INTERVIEW_PREP_E2E_SOURCE is explicitly provided.
+- Applies migrations, imports repository-owned catalog metadata, and adds only
+  synthetic E2E evidence.
+- Guarantees a stable active assignment so Solve-room flows are testable.
 - Strips the legacy-coach env bridge so nothing shells out to the real tracker.
 """
 
@@ -14,6 +13,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,30 +24,87 @@ TARGET = ROOT / "data" / "e2e" / "interview-prep-e2e.db"
 
 
 def prepare_database() -> None:
-    default_source = ROOT / "data" / "interview-prep.db"
-    canonical_source = ROOT.parents[1] / "interview-prep-os" / "data" / "interview-prep.db"
-    if not default_source.exists() and canonical_source.exists():
-        default_source = canonical_source
-    source = Path(os.getenv("INTERVIEW_PREP_E2E_SOURCE", default_source))
+    source_value = os.getenv("INTERVIEW_PREP_E2E_SOURCE")
+    source = Path(source_value) if source_value else None
     TARGET.parent.mkdir(parents=True, exist_ok=True)
     for suffix in ("", "-wal", "-shm"):
         stale = TARGET.parent / (TARGET.name + suffix)
         if stale.exists():
             stale.unlink()
-    if source.exists():
+    if source is not None and source.exists():
         with sqlite3.connect(source) as src, sqlite3.connect(TARGET) as dst:
             src.backup(dst)
 
     os.environ["INTERVIEW_PREP_DB"] = str(TARGET)
     from app.curriculum import import_outtalent
     from app.db import init_db, transaction
-    from app.repository import seed_content
+    from app.repository import ensure_problem, seed_content
 
     init_db(TARGET)
     with transaction(TARGET) as connection:
         seed_content(connection)
         import_outtalent(connection)
+        seed_e2e_fixture(connection, ensure_problem)
         ensure_active_assignment(connection)
+
+
+def seed_e2e_fixture(connection: sqlite3.Connection, ensure_problem) -> None:
+    """Add canonical metadata and synthetic evidence used by browser assertions."""
+    required = [
+        (1, "two-sum", "Two Sum", "Easy", "mixed/design"),
+        (207, "course-schedule", "Course Schedule", "Medium", "graph/modeling"),
+        (
+            417,
+            "pacific-atlantic-water-flow",
+            "Pacific Atlantic Water Flow",
+            "Medium",
+            "graph/traversal",
+        ),
+        (695, "max-area-of-island", "Max Area of Island", "Medium", "graph/traversal"),
+        (
+            1192,
+            "critical-connections-in-a-network",
+            "Critical Connections in a Network",
+            "Hard",
+            "graph/low-link-bridges",
+        ),
+        (721, "accounts-merge", "Accounts Merge", "Medium", "graph/traversal"),
+        (286, "walls-and-gates", "Walls and Gates", "Medium", "graph/traversal"),
+        (994, "rotting-oranges", "Rotting Oranges", "Medium", "graph/traversal"),
+    ]
+    problem_ids: dict[str, int] = {}
+    for leetcode_id, slug, title, difficulty, pattern_id in required:
+        problem_ids[slug] = ensure_problem(
+            connection,
+            leetcode_id=leetcode_id,
+            slug=slug,
+            title=title,
+            url=f"https://leetcode.com/problems/{slug}/",
+            difficulty=difficulty,
+            pattern_id=pattern_id,
+        )
+
+    from app.attempts import record_attempt_evidence
+
+    for index, slug in enumerate(("accounts-merge", "walls-and-gates"), start=1):
+        occurred = datetime.now(UTC) - timedelta(days=4 - index)
+        record_attempt_evidence(
+            connection,
+            problem_id=problem_ids[slug],
+            event_id=f"e2e-synthetic-attempt-{index}",
+            result="red",
+            accepted=False,
+            independent=False,
+            highest_hint=None,
+            duration_minutes=35,
+            failure_tag="implementation",
+            explanation_score=1.0,
+            assignment_id=None,
+            session_id=None,
+            source="e2e-synthetic",
+            raw_json='{"fixture":"synthetic"}',
+            now=occurred,
+        )
 
 
 def ensure_active_assignment(connection: sqlite3.Connection) -> None:
@@ -56,7 +113,9 @@ def ensure_active_assignment(connection: sqlite3.Connection) -> None:
     ).fetchone()
     if active:
         return
-    problem = connection.execute("SELECT id, title FROM problems ORDER BY id LIMIT 1").fetchone()
+    problem = connection.execute(
+        "SELECT id, title FROM problems WHERE leetcode_id=1 LIMIT 1"
+    ).fetchone()
     if problem is None:
         return
     connection.execute(

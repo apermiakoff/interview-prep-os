@@ -1,16 +1,16 @@
-# Maintainer-only private/local deployment with machine-specific legacy imports.
-# Community installations must use compose.community.yaml.
+name: interview-prep-community
+
 x-ai-environment: &ai-environment
   INTERVIEW_PREP_AI_DB: /ai-data/interview-prep-ai.db
   INTERVIEW_PREP_AI_ENABLED: ${INTERVIEW_PREP_AI_ENABLED:-false}
   INTERVIEW_PREP_AI_PROVIDER: ${INTERVIEW_PREP_AI_PROVIDER:-ollama}
-  INTERVIEW_PREP_AI_MODEL: ${INTERVIEW_PREP_AI_MODEL:-llama3.2}
-  INTERVIEW_PREP_AI_BASE_URL: ${INTERVIEW_PREP_AI_BASE_URL:-http://ollama:11434}
+  INTERVIEW_PREP_AI_MODEL: ${INTERVIEW_PREP_AI_MODEL:-}
+  INTERVIEW_PREP_AI_BASE_URL: ${INTERVIEW_PREP_AI_BASE_URL:-http://host.docker.internal:11434}
   INTERVIEW_PREP_AI_API_KEY_FILE: /run/secrets/ai_api_key
-  INTERVIEW_PREP_AI_MONTHLY_TOKEN_BUDGET: ${INTERVIEW_PREP_AI_MONTHLY_TOKEN_BUDGET:-1000000}
+  INTERVIEW_PREP_AI_MONTHLY_TOKEN_BUDGET: ${INTERVIEW_PREP_AI_MONTHLY_TOKEN_BUDGET:-100000}
   INTERVIEW_PREP_AI_MAX_INPUT_TOKENS: ${INTERVIEW_PREP_AI_MAX_INPUT_TOKENS:-12000}
   INTERVIEW_PREP_AI_MAX_OUTPUT_TOKENS: ${INTERVIEW_PREP_AI_MAX_OUTPUT_TOKENS:-2048}
-  INTERVIEW_PREP_AI_MAX_RETRIES: ${INTERVIEW_PREP_AI_MAX_RETRIES:-2}
+  INTERVIEW_PREP_AI_MAX_RETRIES: ${INTERVIEW_PREP_AI_MAX_RETRIES:-1}
   INTERVIEW_PREP_AI_LEASE_SECONDS: ${INTERVIEW_PREP_AI_LEASE_SECONDS:-60}
   INTERVIEW_PREP_AI_ALLOW_PRIVATE_BASE_URL: ${INTERVIEW_PREP_AI_ALLOW_PRIVATE_BASE_URL:-false}
   INTERVIEW_PREP_AI_ALLOWED_BASE_HOSTS: ${INTERVIEW_PREP_AI_ALLOWED_BASE_HOSTS:-}
@@ -19,41 +19,50 @@ services:
   app:
     build: .
     restart: unless-stopped
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
     environment:
       <<: *ai-environment
       INTERVIEW_PREP_DB: /data/interview-prep.db
       INTERVIEW_PREP_STATIC: /app/frontend/dist
-      INTERVIEW_PREP_LEGACY_STATE: /legacy/coach/state.json
-      INTERVIEW_PREP_LEGACY_EVENTS: /legacy/coach/events.jsonl
-      INTERVIEW_PREP_LEGACY_PROFILE: /legacy/coach/profile.json
-      INTERVIEW_PREP_LEGACY_ACTION: /legacy/scripts/action.py
-      INTERVIEW_PREP_LEGACY_PLAN: /legacy/plan.md
-      INTERVIEW_PREP_ALLOWED_HOSTS: ubuntu-16gb-nbg1-1-hermes.tail1fd6b9.ts.net
+      INTERVIEW_PREP_BOOTSTRAP: community
+      INTERVIEW_PREP_ALLOWED_HOSTS: ${INTERVIEW_PREP_ALLOWED_HOSTS:-}
+      INTERVIEW_PREP_ALLOWED_ORIGINS: ${INTERVIEW_PREP_ALLOWED_ORIGINS:-}
     volumes:
-      - ./data:/data
+      - core-data:/data
       - ai-data:/ai-data
       - ${INTERVIEW_PREP_AI_API_KEY_FILE:-./secrets/ai_api_key.empty}:/run/secrets/ai_api_key:ro
-      - /home/hermes/.hermes/leetcode-coach:/legacy/coach
-      - /home/hermes/.hermes/scripts/leetcode-coach:/legacy/scripts:ro
-      - /home/hermes/aleksandr-interview-study-plan.md:/legacy/plan.md:ro
-    ports:
-      - "127.0.0.1:8765:8000"
+    tmpfs: [/tmp]
+    ports: ["127.0.0.1:${INTERVIEW_PREP_PORT:-8765}:8000"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
-      interval: 15s
+      interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 8
+      start_period: 15s
+
   ai-worker:
-    profiles: ["ai"]
+    profiles: [ai]
     build: .
-    restart: on-failure
+    restart: on-failure:3
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
     command: [".venv/bin/python", "-m", "app.ai.worker"]
-    environment:
-      <<: *ai-environment
+    environment: *ai-environment
     volumes:
       - ai-data:/ai-data
       - ${INTERVIEW_PREP_AI_API_KEY_FILE:-./secrets/ai_api_key.empty}:/run/secrets/ai_api_key:ro
+    tmpfs: [/tmp]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    healthcheck:
+      test: ["CMD", ".venv/bin/python", "-c", "from app.ai.config import AIConfig; c=AIConfig.from_env(); assert c.enabled and c.model"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
+  core-data:
   ai-data:

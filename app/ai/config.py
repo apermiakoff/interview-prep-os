@@ -56,6 +56,8 @@ def _parsed_base_url(value: str, *, provider: str, allowed_hosts: frozenset[str]
         raise AIConfigError("AI base URL must be an absolute http(s) URL")
     if parsed.username or parsed.password:
         raise AIConfigError("credentials are forbidden in AI base URLs")
+    if parsed.query or parsed.fragment:
+        raise AIConfigError("query strings and fragments are forbidden in AI base URLs")
     host = parsed.hostname.lower()
     if host.endswith("."):
         raise AIConfigError("AI base URL hosts must be canonical exact names")

@@ -188,7 +188,7 @@ test("ambiguous finish retries one event id and uses the canonical duplicate res
 
   const record = page.getByRole("button", { name: "Record attempt" });
   await record.click();
-  await expect(page.getByText(/could not|failed|network|fetch/i)).toBeVisible();
+  await expect(page.locator(".finish-sheet .form-message")).toBeVisible();
   await record.click();
   await expect(page).toHaveURL(/#problem\/\d+/);
   expect(ids).toHaveLength(2);

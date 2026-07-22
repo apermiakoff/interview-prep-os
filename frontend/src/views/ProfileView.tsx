@@ -1,30 +1,41 @@
-import type { Bootstrap } from "../types";
+import { useState } from "react";
+import { api } from "../api";
+import type { Bootstrap, LearnerSettings } from "../types";
+
+const empty: LearnerSettings = {
+  display_name: "", interview_target: "", weekly_hours: 5, timezone: "UTC",
+  weak_areas: [], preferred_language: "",
+};
 
 export function ProfileView({ data, navigate }: { data: Bootstrap; navigate: (route: string) => void }) {
-  const snapshot = data.profile || {};
-  const profile = snapshot.profile || snapshot;
-  const solved = snapshot.problem_stats || profile.stats?.solved || profile.solved || {};
-  const all = solved.all || { count: 0, submissions: 0 };
-  const easy = solved.easy || { count: 0 };
-  const medium = solved.medium || { count: 0 };
-  const hard = solved.hard || { count: 0 };
-  const contest = snapshot.contest_stats || snapshot.contest || {};
-  const total = Math.max(1, Number(all.count || 0));
-  const percentile = Number(contest.top_percentage || contest.topPercentage || 0);
-  const history = contest.history || [];
-  const last = history.at(-1);
-
-  return (
-    <main className="view page-shell" id="main-content">
-      <div className="profile-hero">
-        <div className="profile-mark">{(profile.real_name || profile.username || "IP").split(/\s+/).map((part: string) => part[0]).slice(0, 2).join("")}</div>
-        <div><span className="eyebrow">Public LeetCode context</span><h1>@{profile.username || "profile"}</h1><p>{[profile.real_name, profile.company, profile.country].filter(Boolean).join(" · ")}</p></div>
-        {snapshot.source?.profile_url && <a className="button subtle" href={snapshot.source.profile_url} target="_blank" rel="noreferrer">Open public profile ↗</a>}
-      </div>
-      <section className="settings-link"><div><span className="eyebrow">Settings</span><h2>Community AI</h2><p>Server-side provider status, limits, and Docker setup guidance.</p></div><button className="button subtle" onClick={() => navigate("settings/ai")}>AI Setup →</button></section>
-      <section className="profile-metrics"><article><span>Problems solved</span><strong>{Number(all.count || 0).toLocaleString()}</strong><p>Public footprint, not mastery evidence</p></article><article><span>Problem ranking</span><strong>#{Number(profile.ranking || 0).toLocaleString()}</strong><p>Platform-wide public rank</p></article><article><span>Contest rating</span><strong>{contest.rating ? Math.round(contest.rating).toLocaleString() : "—"}</strong><p>{percentile ? `Top ${percentile.toFixed(2)}%` : "No percentile"}</p></article></section>
-      <section className="difficulty-composition"><div className="section-rule"><span>Difficulty composition</span><span>{total} total</span></div><div className="difficulty-track"><i className="easy" style={{ width: `${Number(easy.count || 0) / total * 100}%` }} /><i className="medium" style={{ width: `${Number(medium.count || 0) / total * 100}%` }} /><i className="hard" style={{ width: `${Number(hard.count || 0) / total * 100}%` }} /></div><div className="difficulty-labels"><span><i className="easy" />Easy <strong>{easy.count || 0}</strong></span><span><i className="medium" />Medium <strong>{medium.count || 0}</strong></span><span><i className="hard" />Hard <strong>{hard.count || 0}</strong></span></div></section>
-      <section className="profile-context"><article><span className="eyebrow">Contest position</span><h2>{percentile ? `Ahead of ${(100 - percentile).toFixed(1)}% of ranked participants` : "Contest evidence is sparse"}</h2><div className="percentile-track"><i style={{ width: `${Math.max(0, Math.min(100, 100 - percentile))}%` }} /></div><p>Contest rating and solved totals remain separate from private retrieval evidence.</p></article><article><span className="eyebrow">Latest contest</span>{last ? <><h2>{last.title}</h2><p>{last.problems_solved} / {last.total_problems} solved · rank #{Number(last.ranking).toLocaleString()}</p><p>Rating trend {String(last.trend || "unknown").toLowerCase()}</p></> : <p>No attended contest snapshot.</p>}</article></section>
-    </main>
-  );
+  const [settings, setSettings] = useState<LearnerSettings>(data.learner || empty);
+  const [saved, setSaved] = useState(false);
+  const publicSnapshot = data.profile;
+  const publicProfile = publicSnapshot?.profile || publicSnapshot;
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSettings(await api.saveLearnerSettings(settings));
+    setSaved(true);
+  };
+  return <main className="view page-shell" id="main-content">
+    <div className="profile-hero">
+      <div className="profile-mark">{settings.display_name ? settings.display_name.split(/\s+/).map(p => p[0]).slice(0, 2).join("") : "IP"}</div>
+      <div><span className="eyebrow">Local learner profile</span><h1>{settings.display_name || "Set up your profile"}</h1>
+        <p>{settings.interview_target || "Add your target and schedule to personalize this private installation."}</p></div>
+    </div>
+    <section className="settings-link">
+      <form onSubmit={submit} style={{ width: "100%" }}>
+        <span className="eyebrow">Learner settings</span>
+        <p><label>Display name<br/><input aria-label="Display name" value={settings.display_name} onChange={e => setSettings({...settings, display_name: e.target.value})}/></label></p>
+        <p><label>Interview target<br/><input aria-label="Interview target" value={settings.interview_target} onChange={e => setSettings({...settings, interview_target: e.target.value})}/></label></p>
+        <p><label>Weekly hours<br/><input aria-label="Weekly hours" type="number" min="1" max="80" value={settings.weekly_hours} onChange={e => setSettings({...settings, weekly_hours: Number(e.target.value)})}/></label></p>
+        <p><label>Timezone (IANA)<br/><input aria-label="Timezone" value={settings.timezone} onChange={e => setSettings({...settings, timezone: e.target.value})}/></label></p>
+        <p><label>Weak areas (comma separated)<br/><input aria-label="Weak areas" value={settings.weak_areas.join(", ")} onChange={e => setSettings({...settings, weak_areas: e.target.value.split(",").map(v => v.trim()).filter(Boolean)})}/></label></p>
+        <p><label>Preferred language<br/><input aria-label="Preferred language" value={settings.preferred_language} onChange={e => setSettings({...settings, preferred_language: e.target.value})}/></label></p>
+        <button className="button" type="submit">Save learner settings</button>{saved && <span role="status"> Saved locally.</span>}
+      </form>
+    </section>
+    <section className="settings-link"><div><span className="eyebrow">Settings</span><h2>Community AI</h2><p>Optional server-side provider status and limits.</p></div><button className="button subtle" onClick={() => navigate("settings/ai")}>AI Setup →</button></section>
+    {publicProfile ? <section className="profile-context"><article><span className="eyebrow">Optional public LeetCode snapshot</span><h2>@{publicProfile.username || "profile"}</h2><p>Public platform context remains separate from private learning evidence.</p></article></section> : <section className="profile-context"><article><span className="eyebrow">Public profile</span><h2>No public profile imported</h2><p>This is expected on a fresh install and does not limit practice.</p></article></section>}
+  </main>;
 }

@@ -522,6 +522,8 @@ def _problem_placements(connection: sqlite3.Connection, problem_id: int) -> list
 
 
 def bootstrap(connection: sqlite3.Connection) -> dict:
+    from app.community import get_learner_settings
+
     event_rows = attempts(connection)
     outcomes = Counter(row["result"] for row in event_rows)
     failures = Counter(row["failure_tag"] for row in event_rows if row.get("failure_tag"))
@@ -538,7 +540,8 @@ def bootstrap(connection: sqlite3.Connection) -> dict:
     return {
         "generated_at": now_iso(),
         "today": today,
-        "timezone": "Europe/Moscow",
+        "timezone": (get_learner_settings(connection) or {}).get("timezone", "UTC"),
+        "learner": get_learner_settings(connection),
         "active_assignment": active,
         "attempts": event_rows,
         "reviews": reviews(connection),

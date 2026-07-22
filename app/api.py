@@ -4,6 +4,7 @@ import sqlite3
 
 from fastapi import APIRouter, HTTPException, Query
 
+from app.community import get_learner_settings, save_learner_settings
 from app.content import lesson_document
 from app.db import connect, database_path, transaction
 from app.learning import (
@@ -18,6 +19,7 @@ from app.schemas import (
     AttemptCreate,
     HealthResponse,
     HintCreate,
+    LearnerSettingsUpdate,
     NotesUpdate,
     QueueBulkUpdate,
     SessionAttemptCreate,
@@ -57,6 +59,18 @@ def health() -> HealthResponse:
 def get_bootstrap() -> dict:
     with connect() as connection:
         return bootstrap(connection)
+
+
+@router.get("/learner-settings")
+def learner_settings() -> dict | None:
+    with connect() as connection:
+        return get_learner_settings(connection)
+
+
+@router.put("/learner-settings")
+def update_learner_settings(payload: LearnerSettingsUpdate) -> dict:
+    with transaction() as connection:
+        return save_learner_settings(connection, payload.model_dump())
 
 
 @router.get("/problems")

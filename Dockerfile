@@ -14,11 +14,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 RUN groupadd --gid 1000 app && useradd --uid 1000 --gid 1000 --home /app app
 COPY pyproject.toml uv.lock* ./
-RUN pip install --no-cache-dir uv && uv sync --no-dev --frozen || uv sync --no-dev
+RUN pip install --no-cache-dir uv \
+    && (uv sync --no-dev --frozen || uv sync --no-dev) \
+    && pip uninstall -y setuptools wheel
 COPY app ./app
 COPY scripts ./scripts
+COPY curricula/skills.json curricula/starter.json ./curricula/
 COPY --from=web /src/frontend/dist ./frontend/dist
-RUN mkdir -p /data && chown -R app:app /app /data
+RUN mkdir -p /data /ai-data && chown -R app:app /app /data /ai-data
 USER app
 EXPOSE 8000
 CMD [".venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--no-server-header"]
