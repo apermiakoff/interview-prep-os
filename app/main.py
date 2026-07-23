@@ -68,6 +68,16 @@ app.add_middleware(
 )
 
 
+def client_scheme(request: Request) -> str:
+    """Scheme as the browser saw it. TLS terminates at the reverse proxy
+    (Tailscale Serve), so the transport scheme is http even for https pages;
+    X-Forwarded-Proto carries the original scheme. Honoring it cannot admit a
+    foreign origin: the browser-set Origin must still match the trusted host,
+    and a cross-site page cannot attach this header without a CORS preflight."""
+    forwarded = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+    return forwarded if forwarded in {"http", "https"} else request.url.scheme
+
+
 @app.middleware("http")
 async def same_origin_writes(request: Request, call_next):
     """Block browser CSRF while retaining local CLI and health-check access."""
@@ -77,7 +87,8 @@ async def same_origin_writes(request: Request, call_next):
             parsed = urlparse(request.headers["referer"])
             source = f"{parsed.scheme}://{parsed.netloc}"
         if source:
-            expected = f"{request.url.scheme}://{request.headers.get('host', request.url.netloc)}"
+            host = request.headers.get("host", request.url.netloc)
+            expected = f"{client_scheme(request)}://{host}"
             accepted = {expected.rstrip("/"), *allowed_origins()}
             if source.rstrip("/") not in accepted:
                 return JSONResponse({"detail": "cross-origin write rejected"}, status_code=403)

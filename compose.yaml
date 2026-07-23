@@ -29,6 +29,7 @@ services:
       INTERVIEW_PREP_LEGACY_ACTION: /legacy/scripts/action.py
       INTERVIEW_PREP_LEGACY_PLAN: /legacy/plan.md
       INTERVIEW_PREP_ALLOWED_HOSTS: ubuntu-16gb-nbg1-1-hermes.tail1fd6b9.ts.net
+      INTERVIEW_PREP_ALLOWED_ORIGINS: https://ubuntu-16gb-nbg1-1-hermes.tail1fd6b9.ts.net
     volumes:
       - ./data:/data
       - ai-data:/ai-data
