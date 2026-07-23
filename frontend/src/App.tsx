@@ -28,7 +28,8 @@ const legacyRoutes: Record<string, string> = {
 };
 
 function currentRoute() {
-  const raw = window.location.hash.slice(1) || "today";
+  // Bookmarks and hand-typed URLs often use #/solve; treat it as #solve.
+  const raw = window.location.hash.slice(1).replace(/^\/+/, "") || "today";
   return legacyRoutes[raw] || raw;
 }
 
